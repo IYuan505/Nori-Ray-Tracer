@@ -1,9 +1,9 @@
 Advanced Computer Graphics — Homeworks
 ======================================
 
-Student name:
+Student name: Qiyuan Liang
 
-Sciper number:
+Sciper number: 323093
 
 
 ## Build status
