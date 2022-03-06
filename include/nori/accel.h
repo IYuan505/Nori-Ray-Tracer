@@ -20,7 +20,21 @@
 
 #include <nori/mesh.h>
 
+#define SELF_DEBUG true
+
 NORI_NAMESPACE_BEGIN
+
+/**
+ * \brief Acceleration data structure used by \ref Accel
+ */
+struct OctreeNode {
+    OctreeNode *children[8];         // The children OctreeNode if not leaf
+    BoundingBox3f bbox;              // The bounding box of the OctreeNode
+    uint32_t *leafTriangles;         // A leaf triangle array
+    uint32_t leafSize;               /* size of the leaf triangle array, if it
+                                      * is -1 (MAX_UINT32), then it is an 
+                                      * internal node */
+};
 
 /**
  * \brief Acceleration data structure for ray intersection queries
@@ -29,6 +43,7 @@ NORI_NAMESPACE_BEGIN
  * through the geometry.
  */
 class Accel {
+
 public:
     /**
      * \brief Register a triangle mesh for inclusion in the acceleration
@@ -68,6 +83,42 @@ public:
 private:
     Mesh         *m_mesh = nullptr; ///< Mesh (only a single one for now)
     BoundingBox3f m_bbox;           ///< Bounding box of the entire scene
+    OctreeNode    root;             ///< Root of the Octree
+
+    /** 
+     * \brief Build the Octree data structure, called by \ref build()
+     * 
+     * \param currentNode
+     *    A pointer points to the address of the current OctreeNode
+     * 
+     * \param currentTriangles
+     *    A list of indexes of the triangles
+     * 
+     * \param size
+     *    The size of the currentTriangles array
+     * 
+     * \param remainingDepth
+     *    Remaining depth of the Octree to set up
+     */
+    void buildOctree(OctreeNode *currentNode, uint32_t *currentTriangles, uint32_t size, uint32_t remainingDepth);
+
+    /**
+     * \breif Find the closest hit of the ray to the triangles using Octree
+     * 
+     * \param currentNode
+     *    A pointer points to the address of the current OctreeNode
+     * 
+     * \param ray
+     *    The ray to search for hit
+     * 
+     * \param f
+     *    The idx of the triangle with the closest hit
+     * 
+     * \param shadow
+     *    true if this is a shadow ray query
+     */
+    void searchOctree(const OctreeNode *currentNode, Ray3f &ray, Intersection &its, 
+        uint32_t &f, bool shadowRay) const;
 };
 
 NORI_NAMESPACE_END

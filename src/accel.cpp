@@ -17,9 +17,15 @@
 */
 
 #include <nori/accel.h>
+#include <nori/timer.h>
+#include <tbb/parallel_for.h>
 #include <Eigen/Geometry>
 
 NORI_NAMESPACE_BEGIN
+
+// uint32_t tot_size = 0;
+// uint32_t leaf_node = 0;
+// uint32_t internal_node = 0;
 
 void Accel::addMesh(Mesh *mesh) {
     if (m_mesh)
@@ -29,7 +35,38 @@ void Accel::addMesh(Mesh *mesh) {
 }
 
 void Accel::build() {
-    /* Nothing to do here for now */
+    Timer timer;
+
+    /* Set up the root OctreeNode */
+    memcpy(&root.bbox, &m_bbox, sizeof(m_bbox));
+
+    /* Initialize parameters to build the Octree */
+    uint32_t size = m_mesh->getTriangleCount();
+    uint32_t *triangles = (uint32_t *) malloc(sizeof(uint32_t) * size);
+    for (uint32_t i = 0; i < size; ++i) {
+        triangles[i] = i;
+    }
+
+    /* Build the Octree, with depth = 8 */
+    // buildOctree(&root, triangles, size, 8);
+
+    /* Build the Octree, with parallelism */
+    buildOctree(&root, triangles, size, 1);
+
+    tbb::parallel_for( tbb::blocked_range<int>(0, 8),
+                       [&](tbb::blocked_range<int> r)
+    {
+        for (int i=r.begin(); i<r.end(); ++i)
+        {
+            buildOctree(root.children[i], root.children[i]->leafTriangles, 
+                root.children[i]->leafSize, 7);
+            root.children[i]->leafSize = (uint32_t) -1;
+        }
+    });
+
+    cout << "Build Tree. (took " << timer.elapsedString() << ")" << endl;
+    // printf("Number of leaf nodes: %d\nNumber of internal nodes: %d\nAverage triangles per leaf node: %f\nTot triangles: %d\n",
+    //    leaf_node, internal_node, (float) tot_size / leaf_node, tot_size );
 }
 
 bool Accel::rayIntersect(const Ray3f &ray_, Intersection &its, bool shadowRay) const {
@@ -39,20 +76,25 @@ bool Accel::rayIntersect(const Ray3f &ray_, Intersection &its, bool shadowRay) c
     Ray3f ray(ray_); /// Make a copy of the ray (we will need to update its '.maxt' value)
 
     /* Brute force search through all triangles */
-    for (uint32_t idx = 0; idx < m_mesh->getTriangleCount(); ++idx) {
-        float u, v, t;
-        if (m_mesh->rayIntersect(idx, ray, u, v, t)) {
+    // for (uint32_t idx = 0; idx < m_mesh->getTriangleCount(); ++idx) {
+    //     float u, v, t;
+    //     if (m_mesh->rayIntersect(idx, ray, u, v, t)) {
             /* An intersection was found! Can terminate
                immediately if this is a shadow ray query */
-            if (shadowRay)
-                return true;
-            ray.maxt = its.t = t;
-            its.uv = Point2f(u, v);
-            its.mesh = m_mesh;
-            f = idx;
-            foundIntersection = true;
-        }
-    }
+    //         if (shadowRay)
+    //             return true;
+    //         ray.maxt = its.t = t;
+    //         its.uv = Point2f(u, v);
+    //         its.mesh = m_mesh;
+    //         f = idx;
+    //         foundIntersection = true;
+    //     }
+    // }
+
+    /* Search using Octree data structure */
+    if (root.bbox.rayIntersect(ray))
+        searchOctree(&root, ray, its, f, shadowRay);
+    foundIntersection = (f != (uint32_t) -1);
 
     if (foundIntersection) {
         /* At this point, we now know that there is an intersection,
@@ -108,6 +150,138 @@ bool Accel::rayIntersect(const Ray3f &ray_, Intersection &its, bool shadowRay) c
     }
 
     return foundIntersection;
+}
+
+void Accel::buildOctree(OctreeNode *currentNode, uint32_t *currentTriangles, 
+    uint32_t size, uint32_t remainingDepth) {
+
+    /* Local variables are only used when currentNode becomes an internal node */
+    uint32_t *childrenTriangles[8]; // clean up is left for children
+    uint32_t childrenTrianglesSize[8];
+    uint32_t childrenTrianglesCapacity[8];
+    uint32_t initSize;
+
+    if (size < 10 || remainingDepth == 0 ) {
+        /* If the size of the current triangles is small, make a leaf node or the 
+         * remaining depth is 0, make a leaf node */
+        currentNode->leafSize = size;
+        currentNode->leafTriangles = currentTriangles;
+        // tot_size += size;
+        // leaf_node++;
+    } else {
+        // internal_node++;
+        /* If neither conditions is satisfied, make 8 children OctreeNodes */
+        currentNode->leafSize  = (uint32_t) -1; // indicates it is an internal node
+        Point3f center = currentNode->bbox.getCenter();
+        initSize = size / 8;
+        for (uint32_t i = 0; i < 8; ++i) {
+            /* Set up children OctreeNode */
+            currentNode->children[i] = (OctreeNode *) malloc(sizeof(OctreeNode));
+            currentNode->children[i]->bbox.reset();
+            currentNode->children[i]->bbox.expandBy(currentNode->bbox.getCorner(i));
+            currentNode->children[i]->bbox.expandBy(center);
+
+            /* Prepare the temporary data structure that is used for \ref buildOctree */
+            childrenTriangles[i] = (uint32_t *) malloc(sizeof(uint32_t) * initSize);
+            childrenTrianglesSize[i] = 0;
+            childrenTrianglesCapacity[i] = initSize;
+        }
+
+        /* Assign each triangle into different children OctreeNode */
+        for (uint32_t triangleIdx = 0; triangleIdx < size; ++triangleIdx) {
+            for (uint32_t childrenIdx = 0; childrenIdx < 8; ++childrenIdx) {
+                /* If the triangle overlaps with the children Octree, put its index into 
+                 * childrenTriangles[j] */
+                if (currentNode->children[childrenIdx]->bbox.overlaps(
+                    m_mesh->getBoundingBox(currentTriangles[triangleIdx]), false)) {
+                    /* Handle the size of the array exceeding its capacity */
+                    if (childrenTrianglesSize[childrenIdx] == 
+                        childrenTrianglesCapacity[childrenIdx]) {
+                        childrenTrianglesCapacity[childrenIdx] <<= 1;
+                        childrenTriangles[childrenIdx] = 
+                            (uint32_t *) realloc(childrenTriangles[childrenIdx], 
+                            sizeof(uint32_t) * childrenTrianglesCapacity[childrenIdx]);
+                    }
+                    childrenTriangles[childrenIdx][childrenTrianglesSize[childrenIdx]] 
+                        = currentTriangles[triangleIdx];
+                    childrenTrianglesSize[childrenIdx]++;
+                }
+            }
+        }
+
+        free(currentTriangles);
+        for (uint32_t i = 0; i < 8; ++i) {
+            if (childrenTrianglesSize[i] > 0) {
+                buildOctree(currentNode->children[i], childrenTriangles[i], 
+                    childrenTrianglesSize[i], remainingDepth - 1);
+            }
+            else {
+                /* Directly make a leaf, without recursion */
+                currentNode->children[i]->leafSize = 0;
+                // leaf_node++;
+            }
+        }
+    }
+}
+
+void Accel::searchOctree(const OctreeNode *currentNode, Ray3f &ray, Intersection &its, 
+    uint32_t &f, bool shadowRay) const { 
+
+    float u, v, t, dummy;
+    std::pair <int, float> childrenDistance[8]; /* First column: children's index
+                                                 * Second column: children's nearT */
+
+    if (currentNode->leafSize == (uint32_t) -1) {
+        /* Unordered version of the ray traversal */
+        // for (uint32_t i = 0; i < 8; ++i) {
+        //     if (currentNode->children[i]->leafSize != 0
+        //         && currentNode->children[i]->bbox.rayIntersect(ray)) {
+        //         searchOctree(currentNode->children[i], ray, its, f, shadowRay);
+        //         if (shadowRay && (f != (uint32_t) -1))
+        //             return;
+        //     }
+        // }
+        /* Ordered version of the ray traversal */
+        for (uint32_t i = 0; i < 8; ++i) {
+            childrenDistance[i].first = i;
+            /* non empty children */
+            if (currentNode->children[i]->leafSize != 0) {
+                if (!currentNode->children[i]->bbox.rayIntersect(
+                    ray, childrenDistance[i].second, dummy)) {
+                    childrenDistance[i].second = std::numeric_limits<float>::infinity();
+                }
+            } else {
+                childrenDistance[i].second = std::numeric_limits<float>::infinity();
+            }
+        }
+
+        /* Lambda function that is used for sorting the children distance, based on nearT */
+        std::sort(childrenDistance, childrenDistance + 8, 
+            [](std::pair<int, float>& a, std::pair<int, float>& b){ return a.second < b.second;});
+
+        for (uint32_t i = 0; i < 8; ++i) {
+            if (currentNode->children[childrenDistance[i].first]->leafSize != 0 
+                && childrenDistance[i].second != std::numeric_limits<float>::infinity()) {
+                searchOctree(currentNode->children[childrenDistance[i].first], ray, its, f, shadowRay);
+                /* If found f, and current t is smaller than next nearT, or it is a 
+                 * shadaw ray, return */
+                if ((f != (uint32_t) -1) && 
+                    ((i < 7 && its.t <= childrenDistance[i+1].second) 
+                        || shadowRay))
+                    return;
+            }
+        }
+    } else {
+        for (uint32_t i = 0; i < currentNode->leafSize; ++i) {
+            if (m_mesh->rayIntersect(currentNode->leafTriangles[i], ray, u, v, t)) {
+                ray.maxt = its.t = t;
+                its.uv = Point2f(u, v);
+                its.mesh = m_mesh;
+                f = currentNode->leafTriangles[i];
+                if (shadowRay) return;
+            }
+        }
+    }
 }
 
 NORI_NAMESPACE_END
