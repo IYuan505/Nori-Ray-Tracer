@@ -67,6 +67,12 @@ public:
 
     /// Probability density of \ref squareToBeckmann()
     static float squareToBeckmannPdf(const Vector3f &m, float alpha);
+
+    /// Warp a uniformly distributed square sample to a hierarchical sample, given the mipmap of the EXR image
+    static Point2f squareToHierarchical(const Point2f &sample, float mipMap[][1024*1024], uint32_t maxLevel);
+
+    /// Probability density of \ref ssquareToHierarchical(), given the luminance of the EXR image
+    static float squareToHierarchicalPdf(const Point2f &p, float mipMap[][1024*1024], uint32_t maxLevel);
 };
 
 NORI_NAMESPACE_END

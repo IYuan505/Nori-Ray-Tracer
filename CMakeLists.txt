@@ -89,6 +89,8 @@ add_executable(nori
   src/mirror.cpp
   src/dielectric.cpp
   src/normals.cpp
+  src/simple.cpp
+  src/ao.cpp
 )
 
 add_definitions(${NANOGUI_EXTRA_DEFS})
@@ -102,6 +104,7 @@ add_executable(warptest
   src/object.cpp
   src/proplist.cpp
   src/common.cpp
+  src/bitmap.cpp
 )
 
 if (WIN32)
@@ -110,7 +113,7 @@ else()
   target_link_libraries(nori tbb_static pugixml IlmImf nanogui ${NANOGUI_EXTRA_LIBS})
 endif()
 
-target_link_libraries(warptest tbb_static nanogui ${NANOGUI_EXTRA_LIBS})
+target_link_libraries(warptest tbb_static IlmImf nanogui ${NANOGUI_EXTRA_LIBS})
 
 # Force colored output for the ninja generator
 if (CMAKE_GENERATOR STREQUAL "Ninja")

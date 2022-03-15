@@ -26,3 +26,5 @@ rules.ninja
 Debug
 x64
 *ajax.obj
+/scenes/**/*.png
+/scenes/**/*.exr
