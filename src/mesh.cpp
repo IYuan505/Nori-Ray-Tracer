@@ -30,14 +30,60 @@ Mesh::Mesh() { }
 Mesh::~Mesh() {
     delete m_bsdf;
     delete m_emitter;
+    delete m_dpdf;
 }
 
 void Mesh::activate() {
+    if (m_emitter)
+        buildDPDF();
     if (!m_bsdf) {
         /* If no material was assigned, instantiate a diffuse BRDF */
         m_bsdf = static_cast<BSDF *>(
             NoriObjectFactory::createInstance("diffuse", PropertyList()));
     }
+}
+
+
+void Mesh::buildDPDF() {
+    uint32_t triangleNum = getTriangleCount(); // Number of triangles in the mesh
+
+    /* Build the Discrete PDF and normalize its value */
+    m_dpdf = new DiscretePDF();
+    for (uint32_t i = 0; i < triangleNum; ++i)
+        m_dpdf->append(surfaceArea(i));
+    m_dpdf->normalize();
+}
+
+    
+AreaSample *Mesh::getAreaLightSample(Point2f sample) {
+    uint32_t chosenTriangle; // The index of the randomly chosen triangle
+    float temp, alpha, beta; // Temporary variable for storage
+    Point3f p0, p1, p2;      // Three vertexes of the chosen triangle
+    AreaSample *areaSample = new AreaSample();
+
+    /* Choose the triangle */
+    chosenTriangle = m_dpdf->sampleReuse(sample.x());
+    p0 = m_V.col(m_F(0, chosenTriangle));
+    p1 = m_V.col(m_F(1, chosenTriangle));
+    p2 = m_V.col(m_F(2, chosenTriangle));
+    
+    /* Compute the point on triangle */
+    temp = sqrt(1 - sample.x());
+    alpha = 1 - temp;
+    beta = sample.y() * temp;
+    areaSample->p = p0 * alpha + p1 * beta + p2 * (1 - alpha - beta);
+
+    /* Compute the point normal */
+    if (m_N.size() > 0)
+        areaSample->n = (m_N.col(m_F(0, chosenTriangle)) * alpha +
+            m_N.col(m_F(1, chosenTriangle)) * beta +
+            m_N.col(m_F(2, chosenTriangle)) * (1 - alpha - beta)).normalized();
+    else
+        areaSample->n = (p1-p0).cross(p2-p0).normalized();
+
+    /* Compute the PDF */
+    areaSample->pdf = 1 / m_dpdf->getSum();
+    return areaSample;
 }
 
 float Mesh::surfaceArea(uint32_t index) const {

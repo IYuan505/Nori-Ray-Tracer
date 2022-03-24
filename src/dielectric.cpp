@@ -43,7 +43,44 @@ public:
     }
 
     Color3f sample(BSDFQueryRecord &bRec, const Point2f &sample) const {
-        throw NoriException("Unimplemented!");
+        float fr;           // reflection ratio
+        float eta;          // refraction index
+        float sinTheta;     // sin theta of the incident light
+        float sinThetaRefra;// sin theta of the refraction light
+        float cosThetaRefra;// cos theta of the refraction light
+        float zRefra;       // z axis of the refracted light
+
+        fr = fresnel(bRec.wi.z(), m_extIOR, m_intIOR);
+        if (sample.x() < fr) {
+            /* Reflection in local coordinates */
+            bRec.wo = Vector3f(
+                -bRec.wi.x(),
+                -bRec.wi.y(),
+                 bRec.wi.z()
+            );
+            bRec.measure = EDiscrete;
+            /* Relative index of refraction: no change */
+            bRec.eta = 1.0f;
+            return Color3f(1.0f);
+        } else {
+            /* Refraction in local coordinates */
+            /* eta < 1 if going into denser materials */
+            eta = bRec.wi.z() > 0.0f ? 
+                m_extIOR / m_intIOR : m_intIOR / m_extIOR; 
+            sinTheta = sqrt(1 - bRec.wi.z() * bRec.wi.z());
+            sinThetaRefra = sinTheta * eta;
+            cosThetaRefra = sqrt(1 - sinThetaRefra * sinThetaRefra);
+            zRefra = bRec.wi.z() > 0 ? - cosThetaRefra : cosThetaRefra;
+            bRec.wo = Vector3f(
+                -bRec.wi.x() * eta,
+                -bRec.wi.y() * eta,
+                zRefra
+            ).normalized();
+
+            bRec.measure = EDiscrete;
+            bRec.eta = eta;
+            return Color3f(eta * eta);
+        }
     }
 
     std::string toString() const {

@@ -21,8 +21,20 @@
 #include <nori/object.h>
 #include <nori/frame.h>
 #include <nori/bbox.h>
+#include <nori/dpdf.h>
 
 NORI_NAMESPACE_BEGIN
+
+/**
+ */
+struct AreaSample {
+    /// Position on the surface of the mesh
+    Point3f p;
+    /// Interpolated surface normal, or face normal
+    Normal3f n;
+    ///  Probability density of the sample
+    float pdf;
+};
 
 /**
  * \brief Intersection data structure
@@ -145,6 +157,12 @@ public:
     /// Return a pointer to an attached area emitter instance (const version)
     const Emitter *getEmitter() const { return m_emitter; }
 
+    /// Build discrete probability distribution for the area
+    void buildDPDF();
+
+    /// Warp a 2D uniform sample to area sample
+    AreaSample *getAreaLightSample(Point2f sample);
+
     /// Return a pointer to the BSDF associated with this mesh
     const BSDF *getBSDF() const { return m_bsdf; }
 
@@ -174,7 +192,8 @@ protected:
     MatrixXf      m_UV;                  ///< Vertex texture coordinates
     MatrixXu      m_F;                   ///< Faces
     BSDF         *m_bsdf = nullptr;      ///< BSDF of the surface
-    Emitter    *m_emitter = nullptr;     ///< Associated emitter, if any
+    Emitter   *m_emitter = nullptr;      ///< Associated emitter, if any
+    DiscretePDF  *m_dpdf = nullptr;      ///< discrete probability distribution for area light
     BoundingBox3f m_bbox;                ///< Bounding box of the mesh
 };
 
