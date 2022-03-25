@@ -93,6 +93,10 @@ add_executable(nori
   src/ao.cpp
   src/area.cpp
   src/whitted.cpp
+  src/emitter_rect.cpp
+  src/emitter_disk.cpp
+  src/emitter_sphere.cpp
+  src/emitter_whitted.cpp
 )
 
 add_definitions(${NANOGUI_EXTRA_DEFS})

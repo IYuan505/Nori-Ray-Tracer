@@ -61,6 +61,8 @@ class ImageBlock;
  */
 class Sampler : public NoriObject {
 public:
+    int i; // ith sample of the same pixel, for stratified sampling
+    
     /// Release all memory
     virtual ~Sampler() { }
 

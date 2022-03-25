@@ -121,6 +121,83 @@ Artist Points: Interesting scene (5 points)
 Final rendered image using whitted integrator:
 ![Rendered table and chair](table_chair.png)
 
+Hacker Points: Specialized Light Source Sampling (15 points)
+============================================================
+**Implementation**
+
+1. Rectangle<br>
+    To improve the variance in a rectangle emitter, it is hard to consider the distance between the sampling point and the ray intersection point. Besides, it is nearly impossible to remove zero contribution (wasted) samples without sophisticated computation, because all sampling points have the same face normal. Therefore, I try to remove the bad distribution of samples (e.g. clumping of samples because of independent sampling). This is done by stratified sampling on the square, instead of independent sampling. The number of samples per pixel and the index of the current ray ($i^{th}$ ray among all) are both taken into consideration to return a valid stratified sample.
+
+2. Disk<br>
+    Similar to rectangle one, the first two kinds of variance are hard to remove, and I again use the stratified sampling here. An additional step that is performed in the disk emitter is a point warp from the uniform square to the uniform disk.
+
+3. Sphere<br>
+    In sphere, again we could use the stratified sampling. However, there are more efficient methods to reduce the variance. First, there are more than half of the sphere not visible from an intersection point. Second, the distance can be considered too. I implement a cosine hemisphere sampling, to reduce both the variance 1) zero contribution (wasted) samples (e.g. not visible samples on a sphere light; 2) high variance samples (e.g. distance squared in density function). The normal of the hemisphere is a vector from the center of the sphere to the intersection point. Sampling points at the edge of the hemisphere can be invisible from the intersection point, however, the probability is low. For simplicity, I stick with the hemisphere instead of a spherical cap.
+
+
+**Standard deviation (STD) improvement**<br>
+The STD is evaluated between a reference image (with 8000 samples/pixel) and a test image. The test scene is shown in the next section.
+
+1. Rectangle
+
+    | Sample Count | 1 | 4 | 16 | 64 | 256 | 1024 |
+    | --- | --- | --- | --- |--- |--- |--- |
+    | Area Light STD         | 1.563 | 0.836 | 0.415 | 0.209 | 0.104 | 0.053 |
+    | Rectangle Emitter STD  | 1.638 | 0.830 | 0.409 | 0.189 | 0.077 | 0.031 |  
+
+    The variance improvement using stratified sampling is not obvious when the sample count is low, because clumping samples are few. However, when the sample count increases, the improvement is obvious.
+
+2. Disk
+
+    | Sample Count | 1 | 4 | 16 | 64 | 256 | 1024 |
+    | --- | --- | --- | --- |--- |--- |--- |
+    | Area Light STD         | 1.515 | 0.733 | 0.369 | 0.185 | 0.092 | 0.047 |
+    | Rectangle Emitter STD  | 1.427 | 0.730 | 0.357 | 0.174 | 0.081 | 0.037 | 
+
+    Similar to rectangle, the variance improvement is more obvious when sample count increases.
+
+3. Sphere
+
+    | Sample Count | 1 | 4 | 16 | 64 | 256 | 1024 |
+    | --- | --- | --- | --- |--- |--- |--- |
+    | Area Light STD         | 0.711 | 0.347 | 0.172 | 0.086 | 0.043 | 0.021 |
+    | Rectangle Emitter STD  | 0.358 | 0.178 | 0.089 | 0.044 | 0.022 | 0.011 | 
+
+    Unlike rectangle and disk, the strategy used by sphere allows it to reduce variance even when the sample count is low. The improvement compared to an area light emitter is around 2x. The improvement presumably comes from the fact that half of the sphere is not considered anymore.
+
+
+**Comparison to area light**
+
+1. Rectangle
+    1. An equal sample count (1024 samples/pixel) comparison. (Left: Area light, Right: Rectangle emitter)
+        <div class="twentytwenty-container">
+            <img src="hacker_points/rect_area.png" alt="Area light">
+            <img src="hacker_points/rect_special.png" alt="Specialized">
+        </div>
+
+    2. Reference image, with 8000 samples/pixel.
+        <img src="hacker_points/rect_ref.png">
+
+2. Disk
+    1. An equal sample count (1024 samples/pixel) comparison. (Left: Area light, Right: Disk emitter)
+        <div class="twentytwenty-container">
+            <img src="hacker_points/disk_area.png" alt="Area light">
+            <img src="hacker_points/disk_special.png" alt="Specialized">
+        </div>
+
+    2. Reference image, with 8000 samples/pixel.
+        <img src="hacker_points/disk_ref.png">
+
+3. Sphere 
+    1. An equal sample count (1 samples/pixel) comparison. (Left: Area light, Right: Sphere emitter)
+        <div class="twentytwenty-container">
+            <img src="hacker_points/sphere_area.png" alt="Area light">
+            <img src="hacker_points/sphere_special.png" alt="Specialized">
+        </div>
+
+    2. Reference image, with 8000 samples/pixel.
+        <img src="hacker_points/sphere_ref.png">
+
 
 
 <!-- Slider -->

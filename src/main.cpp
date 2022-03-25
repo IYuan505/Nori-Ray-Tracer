@@ -58,6 +58,7 @@ static void renderBlock(const Scene *scene, Sampler *sampler, ImageBlock &block)
                 Color3f value = camera->sampleRay(ray, pixelSample, apertureSample);
 
                 /* Compute the incident radiance */
+                sampler->i = i;
                 value *= integrator->Li(scene, sampler, ray);
 
                 /* Store in the image block */

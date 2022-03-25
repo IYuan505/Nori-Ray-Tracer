@@ -28,3 +28,5 @@ x64
 *ajax.obj
 /scenes/**/*.png
 /scenes/**/*.exr
+/scenes/pa4_art
+/scenes/pa4_hacker

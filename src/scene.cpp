@@ -65,9 +65,9 @@ void Scene::addChild(NoriObject *obj) {
             break;
         
         case EEmitter: {
-                //Emitter *emitter = static_cast<Emitter *>(obj);
+                m_emitter = static_cast<Emitter *>(obj);
                 /* TBD */
-                throw NoriException("Scene::addChild(): You need to implement this for emitters");
+                // throw NoriException("Scene::addChild(): You need to implement this for emitters");
             }
             break;
 
