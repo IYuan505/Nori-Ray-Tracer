@@ -95,6 +95,74 @@ void Scene::addChild(NoriObject *obj) {
     }
 }
 
+Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its, EmitterQueryRecord *eQ, const Ray3f &ray) const {
+    Intersection itsShadow;     // Intersection for shadow ray
+    Ray3f shadowRay;            // A shadow ray from intersection point to the light
+    Color3f emitterLight = {0}; // Light of emitter
+    Color3f fr;                 // Reflection or refraction factor
+    uint32_t chosenIdx;         // Chosen idx of emitter
+    uint32_t emitterIdxSize = 0;// Number of emitters
+    Mesh *mesh = NULL;          // The sampled emitter's mesh
+    Emitter * emitter;          // The sampled emitter
+    Vector3f pToLight;          // Vector from point to light
+    float geo;                  // Geometric term
+    int visibility;             // Visibility from p to light
+    
+    /* Explicit direct emitter sampling
+       Select a sampling emitter uniformly */
+    for (uint32_t i = 0; i < m_meshes.size(); ++i) {
+        if (m_meshes[i]->isEmitter())
+            emitterIdxSize++;
+    }
+    chosenIdx = sampler->next1D() * emitterIdxSize;
+    for (uint32_t i = 0; i < m_meshes.size(); ++i) {
+        if (m_meshes[i]->isEmitter()){
+            if (chosenIdx == 0){
+                mesh = m_meshes[i];
+                break;
+            }
+            chosenIdx--;
+        }
+    }
+    emitter = mesh->getEmitter();
+
+    /* Sample points on the emitter */
+    *eQ = EmitterQueryRecord(mesh, its->p);
+    emitter->sample(*eQ, sampler);
+    pToLight =  eQ->p - its->p;
+    eQ->d = pToLight.norm();
+
+    /* Compute the visibitlity */
+    shadowRay.o = its->p;
+    shadowRay.d = pToLight.normalized();
+    /* Epsilon for shadow ray 1e-4 (important) */
+    shadowRay.mint = 1e-4f;
+    shadowRay.maxt = pToLight.norm() - 1e-4f;
+    shadowRay.update();
+    visibility = 1 - (int) m_accel->rayIntersect(shadowRay, itsShadow, true);
+    /* Test the ray is on the correct side */
+    visibility = visibility && pToLight.dot(its->shFrame.n) > 0 && pToLight.dot(eQ->n) < 0;
+    if (visibility == 0)
+        return 0.0f;
+
+    /*  Compute the radiance */
+    eQ->wo = - pToLight.normalized();
+    emitterLight = emitter->eval(*eQ);
+
+    /* Compute the bsdf's fr */
+    fr = its->mesh->getBSDF()->eval(
+        BSDFQueryRecord(its->shFrame.toLocal(pToLight).normalized(), 
+            its->shFrame.toLocal(- ray.d).normalized(), ESolidAngle));
+
+    /* Compute the geometric term */
+    geo = ((its->shFrame.n.normalized()).dot(pToLight.normalized()))
+        * ((eQ->n.normalized()).dot(- pToLight.normalized())) / (pToLight.dot(pToLight));
+    geo = abs(geo);
+    
+    return Color3f(fr * emitterLight * geo * emitterIdxSize / eQ->pdf);
+}
+
+
 std::string Scene::toString() const {
     std::string meshes;
     for (size_t i=0; i<m_meshes.size(); ++i) {

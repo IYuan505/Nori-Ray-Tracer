@@ -20,8 +20,9 @@ public:
         Color3f fr;                 // Reflection or refraction factor
         const BSDF *bsdf;           // BSDF of the current mesh
         std::vector<Mesh *> meshes; // All meshes of the scene
-        std::vector<int> emitterIdx;// Index of all emitters in the meshes
-        Mesh *mesh;                 // The sampled emitter's mesh
+        uint32_t chosenIdx;         // Chosen idx of emitter
+        uint32_t emitterIdxSize = 0;// Number of emitters
+        Mesh *mesh = NULL;          // The sampled emitter's mesh
         Emitter * emitter;          // The sampled emitter
         EmitterQueryRecord eQ;      // The emitter query record
         Vector3f pToLight;          // Vector from point to light
@@ -43,9 +44,18 @@ public:
                 meshes = scene->getMeshes();
                 for (uint32_t i = 0; i < meshes.size(); ++i) {
                     if (meshes[i]->isEmitter())
-                        emitterIdx.push_back(i);
+                        emitterIdxSize++;
                 }
-                mesh = meshes[emitterIdx[sampler->next1D() * emitterIdx.size()]];
+                chosenIdx = sampler->next1D() * emitterIdxSize;
+                for (uint32_t i = 0; i < meshes.size(); ++i) {
+                    if (meshes[i]->isEmitter()){
+                        if (chosenIdx == 0){
+                            mesh = meshes[i];
+                            break;
+                        }
+                        chosenIdx--;
+                    }
+                }
                 emitter = mesh->getEmitter();
 
                 /* Sample points on the emitter */
@@ -72,7 +82,8 @@ public:
 
                 /* Compute the bsdf's fr */
                 fr = bsdf->eval(
-                    BSDFQueryRecord(its.shFrame.toLocal(pToLight), its.shFrame.toLocal(- ray.d), ESolidAngle));
+                    BSDFQueryRecord(its.shFrame.toLocal(pToLight).normalized(), 
+                        its.shFrame.toLocal(- ray.d).normalized(), ESolidAngle));
 
                 /* Compute the geometric term */
                 geo = ((its.shFrame.n.normalized()).dot(pToLight.normalized()))
@@ -80,11 +91,11 @@ public:
                 geo = abs(geo);
 
                 /* Final light, also considering emitter pdf */
-                finalLight += Color3f(fr * emitterLight * geo * emitterIdx.size() / eQ.pdf);
+                finalLight += Color3f(fr * emitterLight * geo * emitterIdxSize / eQ.pdf);
                 return finalLight;
             } else {
                 /* Generate a reflection or refraction sample */
-                BSDFQueryRecord bQ(its.shFrame.toLocal(- ray.d));
+                BSDFQueryRecord bQ(its.shFrame.toLocal(- ray.d).normalized());
                 fr = bsdf->sample(bQ, sampler->next2D());
 
                 if (sampler->next1D() < 0.95) {

@@ -38,6 +38,8 @@ struct EmitterQueryRecord {
     float pdf;
     /// Parent mesh of the emitter
     Mesh* mesh;
+    /// Distance from its to emitter point
+    float d;
 
     /// Improved version for sampling, also include intersection point info
     Point3f itsP;

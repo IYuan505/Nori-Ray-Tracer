@@ -163,6 +163,9 @@ public:
     /// Warp a 2D uniform sample to area sample
     AreaSample *getAreaLightSample(Point2f sample);
 
+    /// Get total area
+    float getArea() const { return m_dpdf->getSum(); }
+
     /// Return a pointer to the BSDF associated with this mesh
     const BSDF *getBSDF() const { return m_bsdf; }
 

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <nori/accel.h>
+#include <nori/bsdf.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -114,6 +115,9 @@ public:
 
     /// Add a child object to the scene (meshes, integrators etc.)
     void addChild(NoriObject *obj);
+
+    /// Uniformaly sample an emitter in the scenen
+    Color3f uniformlySampleLight(Sampler *sampler, Intersection *its, EmitterQueryRecord *eQ, const Ray3f &ray) const;
 
     /// Return a string summary of the scene (for debugging purposes)
     std::string toString() const;
