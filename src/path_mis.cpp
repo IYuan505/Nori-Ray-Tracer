@@ -14,23 +14,18 @@ public:
 
     Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
         Intersection its;           // Intersection information
-        Intersection itsBRDF;       // Intersection information for BRDF MIS
         Ray3f iterRay(ray);         // Ray used for path tracing
         Color3f throughput = {1};   // Path throughput
         Color3f fr;                 // Reflection or refraction factor (albedo)
         Color3f L = {0};            // Final rendered light 
         Color3f light;              // MIS that come from direct emitter sampling
-        Color3f brdf;               // MIS that come from BRDF  
-        Color3f emitterLight = {0}; // Light of emitter
-        Vector3f pToLight;          // Vector from point to light       
-        std::vector<Mesh *> meshes; // All meshes of the scene
         EmitterQueryRecord eQ;      // The emitter query record
         float eta = 1.0f;           // Cumulative eta
         float prob;                 // Probability to continue
         float lightProb;            // Probability of sampling on light
         float lightPortion;         // Light portion from MIS
-        float brdfProb;             // Probability of sampling the BRDF direction
-        float brdfPortion;          // BRDF portion from MIS
+        float bsdfProb;             // Probability of sampling the BSDF direction
+        float bsdfPortion;          // BSDF portion from MIS
         bool foundIntersection;     // Whether there is an intersection point found
         bool specularBounce = false;// Whether last bounce is a specular bounce
 
@@ -43,11 +38,11 @@ public:
             /* Add the emitter light at path vertex */
             if (its.mesh->isEmitter()) {
                 /* Avoid double counting but also consider MIS
-                   bQ comes from the previous iteration */
+                   bsdfProb comes from the previous iteration */
                 lightProb = 1 / its.mesh->getArea() * its.t * its.t / -iterRay.d.dot(its.shFrame.n);
-                brdfPortion = (bounces == 0 || specularBounce) ? 1 : brdfProb / (lightProb + brdfProb);
+                bsdfPortion = (bounces == 0 || specularBounce) ? 1 : bsdfProb / (lightProb + bsdfProb);
                 eQ = EmitterQueryRecord(-iterRay.d, its.shFrame.n);
-                L += throughput * its.mesh->getEmitter()->eval(eQ) * brdfPortion;
+                L += throughput * its.mesh->getEmitter()->eval(eQ) * bsdfPortion;
             }
             
             /* Multiple importance sampling (MIS):
@@ -59,15 +54,16 @@ public:
                 lightProb = eQ.pdf * eQ.d * eQ.d / eQ.wo.dot(eQ.n);
                 BSDFQueryRecord bQLight(its.shFrame.toLocal(-iterRay.d).normalized(), 
                     its.shFrame.toLocal(-eQ.wo).normalized(), ESolidAngle);
-                brdfProb = its.mesh->getBSDF()->pdf(bQLight);
-                lightPortion = lightProb / (lightProb + brdfProb);
+                bsdfProb = its.mesh->getBSDF()->pdf(bQLight);
+                lightPortion = lightProb / (lightProb + bsdfProb);
                 L += throughput * light * lightPortion;
             }
 
             /* Account for indirect light, we sample a new direction on this surface */
             BSDFQueryRecord bQ(its.shFrame.toLocal(-iterRay.d).normalized());
             fr = its.mesh->getBSDF()->sample(bQ, sampler->next2D());
-            brdfProb = its.mesh->getBSDF()->pdf(bQ);
+            specularBounce = bQ.measure == EDiscrete;
+            bsdfProb = its.mesh->getBSDF()->pdf(bQ);
             if (fr.getLuminance() == 0.0f) break;
 
             /* Update the iteration ray given the sampling */
@@ -82,7 +78,6 @@ public:
             prob = bounces < 4 ? 1 : prob;
             if (sampler->next1D() < prob) {
                 throughput *= fr / prob;
-                specularBounce = !its.mesh->getBSDF()->isDiffuse();
             } else {
                 break;
             }

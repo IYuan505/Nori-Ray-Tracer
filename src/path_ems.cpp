@@ -43,6 +43,7 @@ public:
             /* Account for indirect light, we sample a new direction on this surface */
             BSDFQueryRecord bQ(its.shFrame.toLocal(-iterRay.d).normalized());
             fr = its.mesh->getBSDF()->sample(bQ, sampler->next2D());
+            specularBounce = bQ.measure == EDiscrete;
             if (fr.getLuminance() == 0.0f) break;
 
             /* Update the iteration ray given the sampling */
@@ -58,7 +59,6 @@ public:
             /* Use the Russian Roulette */
             if (sampler->next1D() < prob) {
                 throughput *= fr / prob;
-                specularBounce = !its.mesh->getBSDF()->isDiffuse();
             } else {
                 break;
             }

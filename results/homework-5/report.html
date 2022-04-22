@@ -1,17 +1,27 @@
 **Homework 5**
 
-Student name:
+Student name: Qiyuan Liang
 
-Sciper number:
+Sciper number: 323093
 
 Microfacet BRDF (30 points)
 ===========================
 
 Evaluating the Microfacet BRDF
 ------------------------------
+For `Microfacet::eval` function of the Microfacet BRDF, it consists of two components. One of them is a diffuse BRDF, the other is a rough dielectric microfacet BRDF. Two components are computed separately as follows.
+
+1. Diffuse BRDF: It is integrated over a hemisphere, its value equals $\frac{albedo}{\pi}$.
+2. Rough dielectric microfacet BRDF: It considers three components, first is $D$, which is the microfacet distribution model of the surface normal. The second is $F$, which is the Fresnel reflection coefficient. It represents how much light is not directly reflected. The third is $G$, which is the shadowing and mask term to avoid energy explosion.
+    1. $D$: we use the Beckmann distribution. Warp::squareToBeckmannPdf computes the probability density of selected normals.
+    2. $F$: it is a normal fresnel computation. The difference is that the $\cos{\theta}$ is no longer computed as `wi.z()`, but `wi.dot(wh)`, since `wh` is the real normal that we are using.
+    3. $G$: we use a polynomial to proximate the value of shadowing and mask. The shadowing and mask happen for both incident and outgoing lights. Depending on the angle, its value can be computed individually for the incident and outgoing direction.
+    4. Normalization term: to account for the distortion and integral sum, we also have the normalization term.
 
 Sampling the Microfacet BRDF
 ------------------------------
+1. `Microfacet::sample()`: the sample function decide whether the current light chooses a diffuse or a specular reflection. The portion is given by the $k_s$. For both cases, we compute the final returned value as `eval(bRec) * Frame::cosTheta(bRec.wo) / pdf(bRec)`.
+2. `Microfacet::pdf()`: the pdf is given by the formula $k_sD(w_h)J_h + (1-k_s)\frac{\cos(\theta_o)}{\pi}$, where $D$ again stands for the microfacet distribution of the surface normal, while $J_h$ accounts for the Jacobian of the half direction mapping to outgoing direction.
 
 Validation
 ----------
@@ -31,6 +41,16 @@ Ajax (rough):
 
 Brute force path tracer (15 points)
 ===================================
+
+Design
+------
+Material sampling path tracer generates outgoing direction solely based on BSDF, and there is no direct emitter sampling. Therefore, the only contribution to the function `PathMatsIntegrator:Li` is from the case that the outgoing direction hits a light source. To compute the contribution properly, we have to do the following procedures:
+
+1. Check current ray intersects with the scene, if not, terminate the procedure.
+2. If the ray intersects
+    1. check whether the intersection point lies on an emitter or not. If it is on an emitter, we update the final returned light by adding its contribution, weighted by the $throughput$.
+    2. sample a new direction based on the BSDF, and obtain the reflection/refraction factor of the surface, which is used for the throughput computation.
+    3. continue or terminate the iteration using the Russian Roulette.
 
 Validation
 ----------
@@ -56,6 +76,14 @@ Table test scene:
 Path tracer with next event estimation (25 points)
 ==================================================
 
+Design
+------
+The major difference between `path_mats` and `path_ems` is that now we consider emitter sampling during each iteration. The emitter sampling procedure is essentially the same for the `wihtted` path tracer. Other than that, two additional handlings are placed to avoid double counting. If the ray intersects with an emitter, we only add its contribution in the following cases:
+
+1. Previous bounce is a specular bounce (`bQ.measure == EDiscrete`). For a specular bounce, it is not likely or nearly impossible that the emitter sampling point falls in the correct direction. Therefore, we have to consider the case of ray intersects with emitter from BSDF sampling.
+2. It is the first bounce of the ray. Similarly, it is the only chance we add its contribution to the final rendered light.
+
+
 Validation
 ----------
 
@@ -80,6 +108,13 @@ Table test scene:
 Path tracer with Multiple Importance Sampling (30 points)
 =========================================================
 
+Design
+------
+Compared to `path_ems`, `path_mis` combines two sampling strategies together.
+
+1. For emitter sampling, we also consider the probability that current BSDF samples the same direction. To achieve this goal, we have to write $p_{light}$ and $p_{BSDF}$ in the same measure. Here I choose to convert the emitter sampling, which happens in an area, to measure in a solid angle. This involves computing $p_{new} = p_{old} \frac{d^2}{\cos{\theta}}$, where $p_{old} = \frac{1}{Area}$. The contribution of the emitter sampling is multiplied by the factor $\frac{p_{light}}{p_{light} + p_{BSDF}}$.
+2. For rays intersect with emitters, besides the cases in `path_ems`, we additionally consider its direct illumination contribution. The procedures are similar to the one in step 1. 
+
 Validation
 ----------
 
@@ -101,15 +136,264 @@ Table test scene:
     <img src="table_mis.png" alt="Mine">
 </div>
 
-Feedback
-========
 
-We would appreciate any comments or criticism to improve the projects in future years--naturally, this part will not be graded. Examples of information that is useful to us includes:
+Artist Points: Interesting scene (5 points)
+===========================================
+3D model used:
+1. https://www.blendswap.com/blend/5806
+2. https://www.blendswap.com/blend/12527
+Final rendered image using path MIS integrator:
+![Rendered table and chair](hacker/hacker_art/toy_plane.png)
 
-* How much time did you spend on the assignment? How was it divided between designing, coding, and testing?
-* What advice should we have given you before you started?
-* What was hard or surprising about the assignment?
-* What did you like or dislike? What else would you change?
+
+Hacker Points: refraction through rough dielectrics (20 points)
+===============================================================
+
+Design
+------
+Like any other BSDF, `microfacet_refraction.cpp` implements three functions, `MicrofacetRefraction::eval`, `MicrofacetRefraction::pdf` and `MicrofacetRefraction::sample`. 
+
+1. `MicrofacetRefraction::eval`
+    - This function can take both reflection and refraction rays. Therefore, we have to first check which one it is, by checking the incident and outgoing direction.
+    - Compute the middle vector, given the it is reflection or not. For reflection, $h = sign(i \cdot n)(i+o)$. For refraction, $h =−(\eta_ii+\eta_oo)$.
+    - Microfacet distribution $D$, fresnel coefficient $F$, and shadowing and mask $G$ are computed the same way as the normal microfacet.
+    - Reflection and refraction have a different normalization factor, given the middle vector is computed in a different way. For reflection, it is $\frac{1}{4 |i \cdot n| |o \cdot n|}$. For refraction, it is $\frac{|i \cdot h| |o \cdot h|}{|i \cdot n| |o \cdot n|}\frac{\eta_o^2}{(\eta_i(i \cdot h) + \eta_o(o \cdot h))^2}$.
+
+2. `MicrofacetRefraction::pdf`
+    - Similar to `MicrofacetRefraction::eval`, we first check whether it is reflection or refraction.
+    - The pdf also involves a fresnel coefficient $F$ (or $1 - F$ for refraction) to sum the integral to 1.
+    - Jacobian is different as the middle vector is computed in a different way. For reflection, it is $\frac{1}{4|o \cdot h|}$. For refraction, it is $\frac{\eta_o^2 |o \cdot h|}{(\eta_i(i \cdot h) + \eta_o(o \cdot h))^2}$.
+
+3. `MicrofacetRefraction::sample`
+    - No matter it is reflection or refraction, the middle vector $h$ is sampled the same way. 
+    - After getting the middle vector (or normal vector), we can compute the fresnel coefficient.
+    - Like normal dielectric, we decide between reflection or refraction. Then the outgoing direction is computed accordingly.
+    - The returned values is computed as usual, `eval(bRec) * std::abs(Frame::cosTheta(bRec.wo)) / pdf(bRec)`.
+
+
+
+Rendered Ajax scene with different roughness values
+---------------------------------------------------
+![Rough dielectric with $\alpha = 0.005$](hacker/hacker_rough_dielectric/ajax-0.005.png)
+![Rough dielectric with $\alpha = 0.02$](hacker/hacker_rough_dielectric/ajax-0.02.png)
+![Rough dielectric with $\alpha = 0.08$](hacker/hacker_rough_dielectric/ajax-0.08.png)
+![Rough dielectric with $\alpha = 0.18$](hacker/hacker_rough_dielectric/ajax-0.18.png)
+
+Results of chi2test
+-------------------
+
+### Testing scripts
+``` xml
+<?xml version="1.0" encoding="utf-8"?>
+
+<test type="chi2test">
+    <!-- Test a few different configurations of the microfacet model -->
+
+    <bsdf type="microfacet_refraction">
+        <float name="alpha" value="0.3"/>
+        <float name="intIOR" value="1.5"/>
+        <float name="extIOR" value="1.01"/>
+    </bsdf>
+
+    <bsdf type="microfacet_refraction">
+        <float name="alpha" value="0.6"/>
+        <float name="intIOR" value="1.8"/>
+        <float name="extIOR" value="1.1"/>
+    </bsdf>
+
+    <bsdf type="microfacet_refraction">
+        <float name="alpha" value="0.1"/>
+        <float name="intIOR" value="1.33"/>
+        <float name="extIOR" value="1.01"/>
+    </bsdf>
+
+</test>
+```
+
+### Testing results
+``` text
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.300000,
+  intIOR = 1.500000,
+  extIOR = 1.010000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 91 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 37.7246 (d.o.f. = 31)
+Accepted the null hypothesis (p-value = 0.188769, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.300000,
+  intIOR = 1.500000,
+  extIOR = 1.010000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 74 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 82.8017 (d.o.f. = 96)
+Accepted the null hypothesis (p-value = 0.829278, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.300000,
+  intIOR = 1.500000,
+  extIOR = 1.010000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 76 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 50.553 (d.o.f. = 52)
+Accepted the null hypothesis (p-value = 0.530944, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.300000,
+  intIOR = 1.500000,
+  extIOR = 1.010000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 87 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 66.1554 (d.o.f. = 69)
+Accepted the null hypothesis (p-value = 0.574788, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.300000,
+  intIOR = 1.500000,
+  extIOR = 1.010000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 88 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 69.4398 (d.o.f. = 74)
+Accepted the null hypothesis (p-value = 0.628436, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.600000,
+  intIOR = 1.800000,
+  extIOR = 1.100000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 61 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 85.4005 (d.o.f. = 85)
+Accepted the null hypothesis (p-value = 0.467399, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.600000,
+  intIOR = 1.800000,
+  extIOR = 1.100000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 78 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 76.844 (d.o.f. = 71)
+Accepted the null hypothesis (p-value = 0.296954, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.600000,
+  intIOR = 1.800000,
+  extIOR = 1.100000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 57 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 101.633 (d.o.f. = 87)
+Accepted the null hypothesis (p-value = 0.135125, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.600000,
+  intIOR = 1.800000,
+  extIOR = 1.100000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 72 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 86.4807 (d.o.f. = 77)
+Accepted the null hypothesis (p-value = 0.215371, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.600000,
+  intIOR = 1.800000,
+  extIOR = 1.100000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 61 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 93.2054 (d.o.f. = 90)
+Accepted the null hypothesis (p-value = 0.387552, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.100000,
+  intIOR = 1.330000,
+  extIOR = 1.010000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 50 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 14.9621 (d.o.f. = 16)
+Accepted the null hypothesis (p-value = 0.527415, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.100000,
+  intIOR = 1.330000,
+  extIOR = 1.010000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 74 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 20.3241 (d.o.f. = 17)
+Accepted the null hypothesis (p-value = 0.257987, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.100000,
+  intIOR = 1.330000,
+  extIOR = 1.010000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 51 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 18.3295 (d.o.f. = 13)
+Accepted the null hypothesis (p-value = 0.145405, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.100000,
+  intIOR = 1.330000,
+  extIOR = 1.010000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 82 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 19.1896 (d.o.f. = 18)
+Accepted the null hypothesis (p-value = 0.380238, significance level = 0.000669798)
+
+------------------------------------------------------
+Testing: MicrofacetRefraction[
+  alpha = 0.100000,
+  intIOR = 1.330000,
+  extIOR = 1.010000,
+]
+Accumulating 1000000 samples into a 10x20 contingency table .. done.
+Integrating expected frequencies .. done.
+Pooled 57 to ensure sufficiently high expected cell frequencies (>5)
+Chi^2 statistic = 15.1042 (d.o.f. = 17)
+Accepted the null hypothesis (p-value = 0.587978, significance level = 0.000669798)
+
+Passed 15/15 tests.
+```
 
 <!-- Slider -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>

@@ -53,11 +53,10 @@ public:
     	Color3f color_diffuse;           // color component from the diffuse
         Color3f color_dielectric;        // color component from the dielectric microfacet
         Vector3f wh;                     // middle vector between wi and wo
-        float cosTheta_wh, tanTheta_wh;  // cos and tan theta of wh
         float microfacet_dist;           // microfacet distributioin
         float fr;                        // fresnel coefficient
         float shadow_mask;               // shadowing and mask
-        float shadow, mask;              // shadowing and mask individually
+        float gi, go;                    // shadowing and mask individually
         float bi, bo, ci, co;            // polynomial proximation of the shadowing and mask
 
         if (bRec.measure != ESolidAngle
@@ -71,10 +70,7 @@ public:
         /* Compute the dielectric microfacet component. 
            First, compute the microfacet distribution. */
         wh = (bRec.wi + bRec.wo).normalized();
-        cosTheta_wh = Frame::cosTheta(wh);
-        tanTheta_wh = Frame::tanTheta(wh);
-        microfacet_dist = INV_PI * exp(- tanTheta_wh * tanTheta_wh / (m_alpha * m_alpha)) / 
-            (m_alpha * m_alpha * cosTheta_wh * cosTheta_wh * cosTheta_wh);
+        microfacet_dist = Warp::squareToBeckmannPdf(wh, m_alpha);
 
         /* Second, compute the fresnel ratio */
         fr = fresnel(wh.dot(bRec.wi), m_extIOR, m_intIOR);
@@ -82,18 +78,18 @@ public:
         /* Third, compute the shadowing and mask */
         bi = 1 / (m_alpha * Frame::tanTheta(bRec.wi));
         ci = bRec.wi.dot(wh) / bRec.wi.z() > 0;
-        shadow = bi < 1.6 ? 
+        gi = bi < 1.6 ? 
             ci * (3.535 * bi + 2.181 * bi * bi) / (1 + 2.276 * bi + 2.577 * bi * bi) : ci;
         bo = 1 / (m_alpha * Frame::tanTheta(bRec.wo));
         co = bRec.wo.dot(wh) / bRec.wo.z() > 0;
-        mask = bo < 1.6 ?
+        go = bo < 1.6 ?
             co * (3.535 * bo + 2.181 * bo * bo) / (1 + 2.276 * bo + 2.577 * bo * bo) : co;
-        shadow_mask = shadow * mask;
+        shadow_mask = gi * go;
 
 
         /* Last, compute the normalization of dielectric microfacet component */
         color_dielectric = m_ks * microfacet_dist * fr * shadow_mask / 
-            (4 * Frame::cosTheta(bRec.wi) * Frame::cosTheta(bRec.wo) * cosTheta_wh);
+            (4 * Frame::cosTheta(bRec.wi) * Frame::cosTheta(bRec.wo) * Frame::cosTheta(wh));
 
         return color_diffuse + color_dielectric;
     }
@@ -101,7 +97,6 @@ public:
     /// Evaluate the sampling density of \ref sample() wrt. solid angles
     float pdf(const BSDFQueryRecord &bRec) const {
     	Vector3f wh;                     // middle vector between wi and wo
-        float cosTheta_wh, tanTheta_wh;  // cos and tan theta of wh
         float microfacet_dist;           // microfacet distributioin
         float jacobian;                  // Jacobian of the half direction mapping
 
@@ -111,10 +106,7 @@ public:
             return 0.0f;
 
         wh = (bRec.wi + bRec.wo).normalized();
-        cosTheta_wh = Frame::cosTheta(wh);
-        tanTheta_wh = Frame::tanTheta(wh);
-        microfacet_dist = INV_PI * exp(- tanTheta_wh * tanTheta_wh / (m_alpha * m_alpha)) / 
-            (m_alpha * m_alpha * cosTheta_wh * cosTheta_wh * cosTheta_wh);
+        microfacet_dist = Warp::squareToBeckmannPdf(wh, m_alpha);
         jacobian = 1 / (4 * wh.dot(bRec.wo));
 
         return m_ks * microfacet_dist * jacobian 
