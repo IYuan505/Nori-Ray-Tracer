@@ -163,7 +163,7 @@ public:
         } else {
             /* Sample on refraction */
             bRec.eta = bRec.wi.z() > 0.0f ? 
-                m_extIOR / m_intIOR : m_intIOR / m_extIOR;
+                m_intIOR / m_extIOR : m_extIOR / m_intIOR;
 
             /* Make normal vector the same direction as wi */
             wh = Frame::cosTheta(bRec.wi) > 0 ? wh : -wh;

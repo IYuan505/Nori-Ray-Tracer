@@ -78,8 +78,8 @@ public:
             ).normalized();
 
             bRec.measure = EDiscrete;
-            bRec.eta = eta;
-            return Color3f(eta * eta);
+            bRec.eta = 1 / eta;
+            return Color3f(1 / (eta * eta));
         }
     }
 
