@@ -133,4 +133,31 @@ void Bitmap::savePNG(const std::string &filename) {
     delete[] rgb8;
 }
 
+void Bitmap::saveDenoisedPNG(const std::string &filename) {
+    cout << "Writing a " << cols() << "x" << rows()
+         << " PNG file to \"" << filename << "\"" << endl;
+
+    std::string path = filename + ".png";
+
+    uint8_t *rgb8 = new uint8_t[3 * cols() * rows()];
+    uint8_t *dst = rgb8;
+    for (int i = 0; i < rows(); ++i) {
+        for (int j = 0; j < cols(); ++j) {
+            // Already tonemapped for denoised image
+            Color3f tonemapped = coeffRef(i, j);
+            dst[0] = (uint8_t) clamp(tonemapped[0], 0.f, 255.f);
+            dst[1] = (uint8_t) clamp(tonemapped[1], 0.f, 255.f);
+            dst[2] = (uint8_t) clamp(tonemapped[2], 0.f, 255.f);
+            dst += 3;
+        }
+    }
+
+    int ret = stbi_write_png(path.c_str(), (int) cols(), (int) rows(), 3, rgb8, 3 * (int) cols());
+    if (ret == 0) {
+        cout << "Bitmap::savePNG(): Could not save PNG file \"" << path << "%s\"" << endl;
+    }
+
+    delete[] rgb8;
+}
+
 NORI_NAMESPACE_END

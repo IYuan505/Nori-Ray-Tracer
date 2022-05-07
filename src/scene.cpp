@@ -22,6 +22,7 @@
 #include <nori/sampler.h>
 #include <nori/camera.h>
 #include <nori/emitter.h>
+#include <nori/denoiser.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -34,6 +35,7 @@ Scene::~Scene() {
     delete m_sampler;
     delete m_camera;
     delete m_integrator;
+    delete m_denoiser;
 }
 
 void Scene::activate() {
@@ -89,6 +91,12 @@ void Scene::addChild(NoriObject *obj) {
             m_integrator = static_cast<Integrator *>(obj);
             break;
 
+        case EDenoiser:
+            if (m_denoiser)
+                throw NoriException("There can only be one denoiser per scene!");
+            m_denoiser = static_cast<Denoiser *>(obj);
+            break;
+            
         default:
             throw NoriException("Scene::addChild(<%s>) is not supported!",
                 classTypeName(obj->getClassType()));
@@ -177,6 +185,7 @@ std::string Scene::toString() const {
         "  integrator = %s,\n"
         "  sampler = %s\n"
         "  camera = %s,\n"
+        "  denoiser = %s,\n"
         "  meshes = {\n"
         "  %s  }\n"
         "]",

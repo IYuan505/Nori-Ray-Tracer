@@ -20,6 +20,7 @@
 
 #include <nori/accel.h>
 #include <nori/bsdf.h>
+#include <nori/denoiser.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -55,6 +56,9 @@ public:
 
     /// Return a pointer to the scene's sample generator (const version)
     const Sampler *getSampler() const { return m_sampler; }
+
+    /// Return a pointer to the scene's denoiser
+    const Denoiser *getDenoiser() const {return m_denoiser; }
 
     /// Return a pointer to the scene's sample generator
     Sampler *getSampler() { return m_sampler; }
@@ -130,6 +134,7 @@ private:
     Camera *m_camera = nullptr;
     Accel *m_accel = nullptr;
     Emitter *m_emitter = nullptr;
+    Denoiser *m_denoiser = nullptr;
 };
 
 NORI_NAMESPACE_END

@@ -158,6 +158,14 @@ static void render(Scene *scene, const std::string &filename) {
 
     /* Save tonemapped (sRGB) output using the PNG format */
     bitmap->savePNG(outputName);
+
+    const Denoiser *denoiser = scene->getDenoiser();
+    if (denoiser) {
+        /* denoiser only applies to PNG (0-255) */
+        float estimated_sigma = 125 * log(2) / std::max(log(2), log(scene->getSampler()->getSampleCount()));
+        Bitmap *denoised_bitmap = denoiser->denoise(result.toBitmap(), estimated_sigma);
+        denoised_bitmap->saveDenoisedPNG(outputName + "_denoised");
+    }
 }
 
 int main(int argc, char **argv) {

@@ -64,6 +64,7 @@ add_executable(nori
   include/nori/transform.h
   include/nori/vector.h
   include/nori/warp.h
+  include/nori/denoiser.h
 
   # Source code files
   src/bitmap.cpp
@@ -101,6 +102,7 @@ add_executable(nori
   src/path_ems.cpp
   src/path_mis.cpp
   src/microfacet_refraction.cpp
+  src/bm3d_denoiser.cpp
 )
 
 add_definitions(${NANOGUI_EXTRA_DEFS})

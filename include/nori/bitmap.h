@@ -49,6 +49,9 @@ public:
 
     /// Save the bitmap as a PNG file (with sRGB tonemapping) with the specified filename
     void savePNG(const std::string &filename);
+
+    /// Save the denoised PNG file with specified filename
+    void saveDenoisedPNG(const std::string &filename);
 };
 
 NORI_NAMESPACE_END
