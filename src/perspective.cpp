@@ -47,6 +47,10 @@ public:
         m_nearClip = propList.getFloat("nearClip", 1e-4f);
         m_farClip = propList.getFloat("farClip", 1e4f);
 
+        /* Focal length and lens radius for DoF */
+        m_focalLength = propList.getFloat("focalLength", 0.f);
+        m_lensRadius = propList.getFloat("lensRadius", 0.f);
+
         m_rfilter = NULL;
     }
 
@@ -103,6 +107,25 @@ public:
         ray.d = m_cameraToWorld * d;
         ray.mint = m_nearClip * invZ;
         ray.maxt = m_farClip * invZ;
+
+        /* Modify ray for DoF */
+        if (m_lensRadius > 0.f) {
+            /* Sample point on lens */
+            Point2f pLens = m_lensRadius * Warp::squareToUniformDisk(apertureSample);
+
+            /* Compute point on plan of focus */
+            float ft = m_focalLength / d.z();
+            Point3f pFocus = d * ft;
+
+            /* Update ray for effect of lens */
+            ray.o = Point3f(pLens.x(), pLens.y(), 0);
+            ray.d = (pFocus - ray.o).normalized();
+
+            /* Change to world coordinate */
+            ray.o = m_cameraToWorld * ray.o;
+            ray.d = m_cameraToWorld * ray.d;
+        }
+
         ray.update();
 
         return Color3f(1.0f);
@@ -147,6 +170,8 @@ private:
     float m_fov;
     float m_nearClip;
     float m_farClip;
+    float m_focalLength;
+    float m_lensRadius;
 };
 
 NORI_REGISTER_CLASS(PerspectiveCamera, "perspective");

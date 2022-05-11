@@ -3,6 +3,7 @@
 #include <nori/object.h>
 #include <nori/block.h>
 #include <nori/bitmap.h>
+#include <nori/sampler.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -14,7 +15,7 @@ NORI_NAMESPACE_BEGIN
 class Denoiser: public NoriObject {
 public:
     /// Denoise the bitmap
-    virtual Bitmap *denoise(Bitmap *bitmap, float sigma) const = 0;
+    virtual Bitmap *denoise(Bitmap *noisy, Sampler *sampler) const = 0;
 
     /**
      * \brief Return the type of object (i.e. Mesh/BSDF/etc.)
