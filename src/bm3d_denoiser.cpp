@@ -351,14 +351,13 @@ public:
     void drawSamples(std::vector<unsigned> &samples, Sampler *sampler, 
         unsigned width, unsigned height, unsigned chnls) const {
         unsigned nSamples = 1e5;
-        unsigned patchsize = 15;
 
         samples.resize(nSamples);
         for (unsigned sample = 0; sample < nSamples; sample++)
         {
-            unsigned x = (unsigned(sampler->next1D() * std::numeric_limits<float>::infinity()) % (width - patchsize));
-            unsigned y = (unsigned(sampler->next1D() * std::numeric_limits<float>::infinity()) % (height - patchsize));
-            unsigned z = (unsigned(sampler->next1D() * std::numeric_limits<float>::infinity()) % chnls);
+            unsigned x = unsigned(sampler->next1D() * width * height * chnls) % width;
+            unsigned y = unsigned(sampler->next1D() * width * height * chnls) % height;
+            unsigned z = unsigned(sampler->next1D() * width * height * chnls) % chnls;
             samples[sample] = z * width * height + y * width + x;;
         }
         std::sort(samples.begin(), samples.end());
@@ -380,17 +379,17 @@ public:
             int sample_x = idx - sample_z * width * height - sample_y * width;
 
             float sum = 0;
-            for (unsigned y = sample_y + paddingSize; y < sample_y + patchSize + paddingSize; y++) {
+            for (unsigned y = sample_y; y < sample_y + patchSize; y++) {
                 unsigned pos = sample_z * (width + 2 * paddingSize) * (height + 2 * paddingSize)
-                     + y * (width + 2 * paddingSize) + sample_x + paddingSize;
+                     + y * (width + 2 * paddingSize) + sample_x;
                 for (unsigned x = 0; x < patchSize; x++)
                     sum += img_sym[pos + x];
             }
             float mean = sum / patchLength;
             float variance = 0.0f;
-            for (unsigned y = sample_y + paddingSize; y < sample_y + patchSize + paddingSize; y++) {
+            for (unsigned y = sample_y; y < sample_y + patchSize; y++) {
                 unsigned pos = sample_z * (width + 2 * paddingSize) * (height + 2 * paddingSize)
-                     + y * (width + 2 * paddingSize) + sample_x + paddingSize;
+                     + y * (width + 2 * paddingSize) + sample_x;
                 for (unsigned x = 0; x < patchSize; x++)
                     variance += (img_sym[pos + x] - mean) * (img_sym[pos + x] - mean);
             }
@@ -495,10 +494,11 @@ public:
             if (iters_taken == maxiters) break;
         }
         free(assignment);
-        if (mean1 <= mean2 || var2 <= 0.0) 
-            sigma = 2 * (mean1 + sqrt(var1));
+        if (mean1 >= mean2) {
+            sigma = mean1 + sqrt(var1);
+        }
         else 
-            sigma = 2 * (mean2 + sqrt(var2));
+            sigma = mean2 + sqrt(var2);
     }
 
     void noiseEstimation(std::vector<float> img, unsigned width, unsigned height, unsigned chnls,

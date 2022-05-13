@@ -109,7 +109,7 @@ void ImageBlock::put(ImageBlock &b) {
 
     tbb::mutex::scoped_lock lock(m_mutex);
 
-    block(offset.y(), offset.x(), size.y(), size.x()) 
+    block(0, offset.x(), size.y(), size.x()) 
         += b.topLeftCorner(size.y(), size.x());
 }
 
@@ -125,7 +125,7 @@ BlockGenerator::BlockGenerator(const Vector2i &size, int blockSize)
         (int) std::ceil(size.y() / (float) blockSize));
     m_blocksLeft = m_numBlocks.x() * m_numBlocks.y();
     m_direction = ERight;
-    m_block = Point2i(m_numBlocks / 2);
+    m_block = Point2i(0, 0);
     m_stepsLeft = 1;
     m_numSteps = 1;
 }
@@ -143,22 +143,12 @@ bool BlockGenerator::next(ImageBlock &block) {
     if (--m_blocksLeft == 0)
         return true;
 
-    do {
-        switch (m_direction) {
-            case ERight: ++m_block.x(); break;
-            case EDown:  ++m_block.y(); break;
-            case ELeft:  --m_block.x(); break;
-            case EUp:    --m_block.y(); break;
-        }
-
-        if (--m_stepsLeft == 0) {
-            m_direction = (m_direction + 1) % 4;
-            if (m_direction == ELeft || m_direction == ERight) 
-                ++m_numSteps;
-            m_stepsLeft = m_numSteps;
-        }
-    } while ((m_block.array() < 0).any() ||
-             (m_block.array() >= m_numBlocks.array()).any());
+    if (m_block.x() == m_numBlocks.x() - 1) {
+        m_block.x() = 0;
+        m_block.y()++;
+    } else {
+        m_block.x()++;
+    }
 
     return true;
 }

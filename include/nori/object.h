@@ -43,6 +43,7 @@ public:
         ETest,
         EReconstructionFilter,
         EDenoiser,
+        ETexture,
         EClassTypeCount
     };
 
@@ -100,6 +101,7 @@ public:
             case ESampler:    return "sampler";
             case ETest:       return "test";
             case EDenoiser:   return "denoiser";
+            case ETexture:    return "texture";
             default:          return "<unknown>";
         }
     }

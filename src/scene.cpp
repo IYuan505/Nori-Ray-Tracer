@@ -148,8 +148,6 @@ Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its, Emitter
     shadowRay.maxt = pToLight.norm() - 1e-4f;
     shadowRay.update();
     visibility = 1 - (int) m_accel->rayIntersect(shadowRay, itsShadow, true);
-    /* Test the ray is on the correct side */
-    visibility = visibility && pToLight.dot(its->shFrame.n) > 0 && pToLight.dot(eQ->n) < 0;
     if (visibility == 0)
         return 0.0f;
 
@@ -161,6 +159,7 @@ Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its, Emitter
     fr = its->mesh->getBSDF()->eval(
         BSDFQueryRecord(its->shFrame.toLocal(pToLight).normalized(), 
             its->shFrame.toLocal(- ray.d).normalized(), ESolidAngle));
+    fr *= its->mesh->getTexture()->eval(its->uv);
 
     /* Compute the geometric term */
     geo = ((its->shFrame.n.normalized()).dot(pToLight.normalized()))

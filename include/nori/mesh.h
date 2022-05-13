@@ -22,6 +22,7 @@
 #include <nori/frame.h>
 #include <nori/bbox.h>
 #include <nori/dpdf.h>
+#include <nori/texture.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -169,6 +170,9 @@ public:
     /// Return a pointer to the BSDF associated with this mesh
     const BSDF *getBSDF() const { return m_bsdf; }
 
+    /// Return a pointer to the Texture associated with this mesh
+    const Texture *getTexture() const { return m_texture; }
+
     /// Register a child object (e.g. a BSDF) with the mesh
     virtual void addChild(NoriObject *child);
 
@@ -195,6 +199,7 @@ protected:
     MatrixXf      m_UV;                  ///< Vertex texture coordinates
     MatrixXu      m_F;                   ///< Faces
     BSDF         *m_bsdf = nullptr;      ///< BSDF of the surface
+    Texture   *m_texture = nullptr;      ///< Texture of the mesh
     Emitter   *m_emitter = nullptr;      ///< Associated emitter, if any
     DiscretePDF  *m_dpdf = nullptr;      ///< discrete probability distribution for area light
     BoundingBox3f m_bbox;                ///< Bounding box of the mesh

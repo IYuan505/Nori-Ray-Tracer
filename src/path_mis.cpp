@@ -62,6 +62,8 @@ public:
             /* Account for indirect light, we sample a new direction on this surface */
             BSDFQueryRecord bQ(its.shFrame.toLocal(-iterRay.d).normalized());
             fr = its.mesh->getBSDF()->sample(bQ, sampler->next2D());
+            fr *= its.mesh->getTexture()->eval(its.uv);
+
             specularBounce = bQ.measure == EDiscrete;
             bsdfProb = its.mesh->getBSDF()->pdf(bQ);
             if (fr.getLuminance() == 0.0f) break;

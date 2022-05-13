@@ -29,6 +29,7 @@ Mesh::Mesh() { }
 
 Mesh::~Mesh() {
     delete m_bsdf;
+    delete m_texture;
     delete m_emitter;
     delete m_dpdf;
 }
@@ -40,6 +41,11 @@ void Mesh::activate() {
         /* If no material was assigned, instantiate a diffuse BRDF */
         m_bsdf = static_cast<BSDF *>(
             NoriObjectFactory::createInstance("diffuse", PropertyList()));
+    }
+    if (!m_texture) {
+        /* If no texture was assigned, instantiate a constant texture */
+        m_texture = static_cast<Texture *>(
+            NoriObjectFactory::createInstance("constanttexture", PropertyList()));
     }
 }
 
@@ -165,6 +171,13 @@ void Mesh::addChild(NoriObject *obj) {
             }
             break;
 
+        case ETexture:
+            if (m_texture)
+                throw NoriException(
+                    "Mesh: tried to register multiple Texture instances!");
+            m_texture = static_cast<Texture *>(obj);
+            break;
+
         default:
             throw NoriException("Mesh::addChild(<%s>) is not supported!",
                                 classTypeName(obj->getClassType()));
@@ -178,12 +191,14 @@ std::string Mesh::toString() const {
         "  vertexCount = %i,\n"
         "  triangleCount = %i,\n"
         "  bsdf = %s,\n"
+        "  texture = %s,\n"
         "  emitter = %s\n"
         "]",
         m_name,
         m_V.cols(),
         m_F.cols(),
         m_bsdf ? indent(m_bsdf->toString()) : std::string("null"),
+        m_texture ? indent(m_texture->toString()) : std::string("null"),
         m_emitter ? indent(m_emitter->toString()) : std::string("null")
     );
 }

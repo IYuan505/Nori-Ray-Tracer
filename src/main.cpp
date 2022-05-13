@@ -76,87 +76,95 @@ static void render(Scene *scene, const std::string &filename) {
     /* Create a block generator (i.e. a work scheduler) */
     BlockGenerator blockGenerator(outputSize, NORI_BLOCK_SIZE);
 
-    /* Allocate memory for the entire output image and clear it */
-    ImageBlock result(outputSize, camera->getReconstructionFilter());
-    result.clear();
-
-    /* Create a window that visualizes the partially rendered result */
-    NoriScreen *screen = nullptr;
-    if (gui) {
-        nanogui::init();
-        screen = new NoriScreen(result);
-    }
-
-    /* Do the following in parallel and asynchronously */
-    std::thread render_thread([&] {
-        tbb::task_scheduler_init init(threadCount);
-
-        cout << "Rendering .. ";
-        cout.flush();
-        Timer timer;
-
-        tbb::blocked_range<int> range(0, blockGenerator.getBlockCount());
-
-        auto map = [&](const tbb::blocked_range<int> &range) {
-            /* Allocate memory for a small image block to be rendered
-               by the current thread */
-            ImageBlock block(Vector2i(NORI_BLOCK_SIZE),
-                camera->getReconstructionFilter());
-
-            /* Create a clone of the sampler for the current thread */
-            std::unique_ptr<Sampler> sampler(scene->getSampler()->clone());
-
-            for (int i=range.begin(); i<range.end(); ++i) {
-                /* Request an image block from the block generator */
-                blockGenerator.next(block);
-
-                /* Inform the sampler about the block to be rendered */
-                sampler->prepare(block);
-
-                /* Render all contained pixels */
-                renderBlock(scene, sampler.get(), block);
-
-                /* The image block has been processed. Now add it to
-                   the "big" block that represents the entire image */
-                result.put(block);
-            }
-        };
-
-        /// Default: parallel rendering
-        tbb::parallel_for(range, map);
-
-        /// (equivalent to the following single-threaded call)
-        // map(range);
-
-        cout << "done. (took " << timer.elapsedString() << ")" << endl;
-    });
-
-    /* Enter the application main loop */
-    if (gui)
-        nanogui::mainloop(50.f);
-
-    /* Shut down the user interface */
-    render_thread.join();
-
-    if (gui) {
-        delete screen;
-        nanogui::shutdown();
-    }
-
-    /* Now turn the rendered image block into
-       a properly normalized bitmap */
-    std::unique_ptr<Bitmap> bitmap(result.toBitmap());
-
     /* Determine the filename of the output bitmap */
     std::string outputName = filename;
     size_t lastdot = outputName.find_last_of(".");
     if (lastdot != std::string::npos)
         outputName.erase(lastdot, std::string::npos);
 
-    /* Save using the OpenEXR format */
-    bitmap->saveEXR(outputName);
+    for (int i = 0; i < (int) std::ceil(outputSize.y() / (float) NORI_BLOCK_SIZE); ++i) {
+        ImageBlock tmp_result(Vector2i(outputSize.x(), NORI_BLOCK_SIZE), camera->getReconstructionFilter());
+        tmp_result.clear();
 
-    /* Save tonemapped (sRGB) output using the PNG format */
+        int startIdx = i * (int) std::ceil(outputSize.x() / (float) NORI_BLOCK_SIZE);
+        int endIdx = (i + 1) * (int) std::ceil(outputSize.x() / (float) NORI_BLOCK_SIZE);
+
+        /* Do the following in parallel and asynchronously */
+        std::thread render_thread([&] {
+            tbb::task_scheduler_init init(threadCount);
+
+            cout << "Rendering .. ";
+            cout.flush();
+            Timer timer;
+
+            tbb::blocked_range<int> range(startIdx, endIdx);
+
+            auto map = [&](const tbb::blocked_range<int> &range) {
+                /* Allocate memory for a small image block to be rendered
+                   by the current thread */
+                ImageBlock block(Vector2i(NORI_BLOCK_SIZE),
+                    camera->getReconstructionFilter());
+
+                /* Create a clone of the sampler for the current thread */
+                std::unique_ptr<Sampler> sampler(scene->getSampler()->clone());
+
+                for (int i=range.begin(); i<range.end(); ++i) {
+                    /* Request an image block from the block generator */
+                    blockGenerator.next(block);
+
+                    /* Inform the sampler about the block to be rendered */
+                    sampler->prepare(block);
+
+                    /* Render all contained pixels */
+                    renderBlock(scene, sampler.get(), block);
+
+                    /* The image block has been processed. Now add it to
+                       the "big" block that represents the entire image */
+                    tmp_result.put(block);
+                }
+            };
+
+            /// Default: parallel rendering
+            tbb::parallel_for(range, map);
+
+            /// (equivalent to the following single-threaded call)
+            // map(range);
+
+            cout << "Part " << i << " done. (took " << timer.elapsedString() << ")" << endl;
+        });
+
+        /* Shut down the user interface */
+        render_thread.join();
+
+        Bitmap *tmp_bitmap = tmp_result.toBitmap();
+        tmp_bitmap->saveEXR(outputName + "_tmp_" + std::to_string(i));
+        delete tmp_bitmap;
+    }
+
+    /* Allocate memory for the entire output image and clear it */
+    ImageBlock result(outputSize, camera->getReconstructionFilter());
+    result.clear();
+    /* Create a window that visualizes the partially rendered result */
+    NoriScreen *screen = nullptr;
+    if (gui) {
+        nanogui::init();
+        screen = new NoriScreen(result);
+    }
+    for (int i = 0; i < (int) std::ceil(outputSize.y() / (float) NORI_BLOCK_SIZE); ++i) {
+        Bitmap bitmap(outputName + "_tmp_" + std::to_string(i) + ".exr");
+        for (int y=0; y<bitmap.rows(); ++y)
+            for (int x=0; x<bitmap.cols(); ++x)
+                result.coeffRef(y + i * NORI_BLOCK_SIZE, x) << bitmap.coeff(y, x), 1;
+    }
+
+    /* Enter the application main loop */
+    if (gui){
+        nanogui::mainloop(50.f);
+        delete screen;
+        nanogui::shutdown();
+    }
+    std::unique_ptr<Bitmap> bitmap(result.toBitmap());
+    bitmap->saveEXR(outputName);
     bitmap->savePNG(outputName);
 
     const Denoiser *denoiser = scene->getDenoiser();

@@ -1,4 +1,7 @@
 cmake_minimum_required (VERSION 3.8)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 project(nori)
 
 add_subdirectory(ext ext_build)
@@ -6,6 +9,8 @@ add_subdirectory(ext ext_build)
 include_directories(
   # Nori include files
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  # lodepng library
+  ${CMAKE_CURRENT_SOURCE_DIR}/ext
   # tinyformat string formatting library
   ${TFM_INCLUDE_DIR}
   # Eigen linear algebra library
@@ -65,6 +70,7 @@ add_executable(nori
   include/nori/vector.h
   include/nori/warp.h
   include/nori/denoiser.h
+  include/nori/texture.h
 
   # Source code files
   src/bitmap.cpp
@@ -103,6 +109,11 @@ add_executable(nori
   src/path_mis.cpp
   src/microfacet_refraction.cpp
   src/bm3d_denoiser.cpp
+  src/constant_texture.cpp
+  src/image_texture.cpp
+
+  ext/lodepng.h
+  ext/lodepng.cpp
 )
 
 add_definitions(${NANOGUI_EXTRA_DEFS})
