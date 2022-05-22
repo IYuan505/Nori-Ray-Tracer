@@ -73,44 +73,44 @@ add_executable(nori
   include/nori/texture.h
 
   # Source code files
-  src/bitmap.cpp
-  src/block.cpp
-  src/accel.cpp
-  src/chi2test.cpp
-  src/common.cpp
-  src/diffuse.cpp
-  src/gui.cpp
-  src/independent.cpp
-  src/main.cpp
-  src/mesh.cpp
-  src/obj.cpp
-  src/object.cpp
-  src/parser.cpp
-  src/perspective.cpp
-  src/proplist.cpp
-  src/rfilter.cpp
-  src/scene.cpp
-  src/ttest.cpp
-  src/warp.cpp
-  src/microfacet.cpp
-  src/mirror.cpp
-  src/dielectric.cpp
-  src/normals.cpp
-  src/simple.cpp
-  src/ao.cpp
-  src/area.cpp
-  src/whitted.cpp
-  src/emitter_rect.cpp
-  src/emitter_disk.cpp
-  src/emitter_sphere.cpp
-  src/emitter_whitted.cpp
-  src/path_mats.cpp
-  src/path_ems.cpp
-  src/path_mis.cpp
-  src/microfacet_refraction.cpp
-  src/bm3d_denoiser.cpp
-  src/constant_texture.cpp
-  src/image_texture.cpp
+  src/core/bitmap.cpp
+  src/core/block.cpp
+  src/accelerator/accel.cpp
+  src/core/chi2test.cpp
+  src/core/common.cpp
+  src/material/diffuse.cpp
+  src/core/gui.cpp
+  src/sampler/independent.cpp
+  src/main/main.cpp
+  src/core/mesh.cpp
+  src/core/obj.cpp
+  src/core/object.cpp
+  src/core/parser.cpp
+  src/camera/perspective.cpp
+  src/core/proplist.cpp
+  src/filter/rfilter.cpp
+  src/core/scene.cpp
+  src/core/ttest.cpp
+  src/core/warp.cpp
+  src/material/microfacet.cpp
+  src/material/mirror.cpp
+  src/material/dielectric.cpp
+  src/integrator/normals.cpp
+  src/integrator/simple.cpp
+  src/integrator/ao.cpp
+  src/light/area.cpp
+  src/integrator/whitted.cpp
+  src/light/emitter_rect.cpp
+  src/light/emitter_disk.cpp
+  src/light/emitter_sphere.cpp
+  src/integrator/emitter_whitted.cpp
+  src/integrator/path_mats.cpp
+  src/integrator/path_ems.cpp
+  src/integrator/path_mis.cpp
+  src/material/microfacet_refraction.cpp
+  src/denoiser/bm3d_denoiser.cpp
+  src/texture/constant_texture.cpp
+  src/texture/image_texture.cpp
 
   ext/lodepng.h
   ext/lodepng.cpp
@@ -121,13 +121,13 @@ add_definitions(${NANOGUI_EXTRA_DEFS})
 # The following lines build the warping test application
 add_executable(warptest
   include/nori/warp.h
-  src/warp.cpp
-  src/warptest.cpp
-  src/microfacet.cpp
-  src/object.cpp
-  src/proplist.cpp
-  src/common.cpp
-  src/bitmap.cpp
+  src/core/warp.cpp
+  src/core/warptest.cpp
+  src/material/microfacet.cpp
+  src/core/object.cpp
+  src/core/proplist.cpp
+  src/core/common.cpp
+  src/core/bitmap.cpp
 )
 
 if (WIN32)

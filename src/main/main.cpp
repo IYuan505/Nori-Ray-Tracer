@@ -35,6 +35,8 @@ using namespace nori;
 
 static int threadCount = -1;
 static bool gui = true;
+static bool iterativeMode = false;
+static int startI = 0;
 
 static void renderBlock(const Scene *scene, Sampler *sampler, ImageBlock &block) {
     const Camera *camera = scene->getCamera();
@@ -82,8 +84,13 @@ static void render(Scene *scene, const std::string &filename) {
     if (lastdot != std::string::npos)
         outputName.erase(lastdot, std::string::npos);
 
-    for (int i = 0; i < (int) std::ceil(outputSize.y() / (float) NORI_BLOCK_SIZE); ++i) {
-        ImageBlock tmp_result(Vector2i(outputSize.x(), NORI_BLOCK_SIZE), camera->getReconstructionFilter());
+    for (int i = startI; i < (int) std::ceil(outputSize.y() / (float) NORI_BLOCK_SIZE); ++i) {
+        blockGenerator.setStart(Vector2i(0, i));
+        int remaining_y = NORI_BLOCK_SIZE;
+        if (i == (int) std::ceil(outputSize.y() / (float) NORI_BLOCK_SIZE) - 1
+            && outputSize.y() % NORI_BLOCK_SIZE != 0) 
+            remaining_y = outputSize.y() % NORI_BLOCK_SIZE;
+        ImageBlock tmp_result(Vector2i(outputSize.x(), remaining_y), camera->getReconstructionFilter());
         tmp_result.clear();
 
         int startIdx = i * (int) std::ceil(outputSize.x() / (float) NORI_BLOCK_SIZE);
@@ -139,6 +146,8 @@ static void render(Scene *scene, const std::string &filename) {
         Bitmap *tmp_bitmap = tmp_result.toBitmap();
         tmp_bitmap->saveEXR(outputName + "_tmp_" + std::to_string(i));
         delete tmp_bitmap;
+        
+        if (iterativeMode && i < (int) std::ceil(outputSize.y() / (float) NORI_BLOCK_SIZE) - 1) return;
     }
 
     /* Allocate memory for the entire output image and clear it */
@@ -202,6 +211,12 @@ int main(int argc, char **argv) {
         }
         else if (token == "--no-gui") {
             gui = false;
+            continue;
+        }
+        else if (token == "--start") {
+            startI = atoi(argv[i+1]);
+            iterativeMode = true;
+            i++;
             continue;
         }
 

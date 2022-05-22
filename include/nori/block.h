@@ -147,6 +147,9 @@ public:
      */
     bool next(ImageBlock &block);
 
+    /// Set start pos
+    void setStart(const Vector2i startPos) { m_block = startPos; }
+
     /// Return the total number of blocks
     int getBlockCount() const { return m_blocksLeft; }
 protected:

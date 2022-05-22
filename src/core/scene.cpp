@@ -162,7 +162,7 @@ Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its, Emitter
     fr *= its->mesh->getTexture()->eval(its->uv);
 
     /* Compute the geometric term */
-    geo = ((its->shFrame.n.normalized()).dot(pToLight.normalized()))
+    geo = ((its->perturbFrame.n.normalized()).dot(pToLight.normalized()))
         * ((eQ->n.normalized()).dot(- pToLight.normalized())) / (pToLight.dot(pToLight));
     geo = abs(geo);
     
