@@ -17,7 +17,12 @@ public:
     float pdf(const BSDFQueryRecord &bRec) const { return 0.0f; }
 
     /// Draw a a sample from the BRDF model
-    Color3f sample(BSDFQueryRecord &bRec, const Point2f &sample) const { return 0.0f; }
+    Color3f sample(BSDFQueryRecord &bRec, const Point2f &sample) const { 
+        bRec.measure = EDiscrete;
+        bRec.wo = -bRec.wi;
+        bRec.eta = 1.0f;
+        return 1.0f;
+    }
 
     bool isNone() const {
         return true;

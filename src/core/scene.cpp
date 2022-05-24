@@ -124,6 +124,7 @@ Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its,
     Emitter * emitter;          // The sampled emitter
     Vector3f pToLight;          // Vector from point to light
     float geo;                  // Geometric term
+    float maxt;                 // Maxt of the shadow ray
     int visibility;             // Visibility from p to light
     
     /* Explicit direct emitter sampling
@@ -150,14 +151,22 @@ Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its,
     pToLight =  eQ->p - its->p;
     eQ->d = pToLight.norm();
 
-    /* Compute the visibitlity */
-    shadowRay.o = its->p;
-    shadowRay.d = pToLight.normalized();
-    /* Epsilon for shadow ray 1e-4 (important) */
-    shadowRay.mint = 1e-4f;
-    shadowRay.maxt = pToLight.norm() - 1e-4f;
-    shadowRay.update();
-    visibility = 1 - (int) m_accel->rayIntersect(shadowRay, itsShadow, true);
+    /* Compute the visibitlity, epsilon for shadow ray 1e-4 (important) */
+    maxt = pToLight.norm() - 1e-4f;
+    Ray3f temp = Ray3f(its->p, pToLight.normalized(), 1e-4f, maxt);
+    memcpy(&shadowRay, &temp, sizeof(Ray3f));
+    
+    while (1) {
+        visibility = 1 - (int) m_accel->rayIntersect(shadowRay, itsShadow, true);
+        if (visibility == 0 && itsShadow.mesh->getBSDF()->isNone()) {
+            maxt -= itsShadow.t;
+            Ray3f temp = Ray3f(itsShadow.p, shadowRay.d, 1e-4f, maxt);
+            memcpy(&shadowRay, &temp, sizeof(Ray3f));
+            continue;
+        }
+        break;
+    }
+
     if (visibility == 0)
         return 0.0f;
 
@@ -205,7 +214,6 @@ std::string Scene::toString() const {
         "  integrator = %s,\n"
         "  sampler = %s\n"
         "  camera = %s,\n"
-        "  denoiser = %s,\n"
         "  meshes = {\n"
         "  %s  }\n"
         "]",

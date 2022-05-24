@@ -438,8 +438,11 @@ bool Accel::rayIntersect(const Ray3f &_ray, Intersection &its, bool shadowRay) c
 
                 float u, v, t;
                 if (mesh->rayIntersect(idx, ray, u, v, t)) {
-                    if (shadowRay)
+                    if (shadowRay){
+                        its.t = t;
+                        its.mesh = mesh;
                         return true;
+                    }
                     foundIntersection = true;
                     ray.maxt = its.t = t;
                     its.uv = Point2f(u, v);

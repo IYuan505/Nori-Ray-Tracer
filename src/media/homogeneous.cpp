@@ -49,6 +49,10 @@ public:
 		return m_phase->p(wo, wi);
 	}
 
+	Color3f albedo() const {
+		return m_sigma_s /  m_sigma_t;
+	}
+
 	std::string toString() const {
         return "Homogeneous medium\n";
     }

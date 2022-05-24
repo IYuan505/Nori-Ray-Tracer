@@ -37,6 +37,13 @@ public:
                 L += throughput * its.mesh->getEmitter()->eval(eQ);
             }
             
+            if (its.mesh->getBSDF()->isNone()) {
+                Ray3f temp = Ray3f(its.p, iterRay.d);
+                memcpy(&iterRay, &temp, sizeof(Ray3f));
+                bounces--;
+                continue;
+            }
+
             /* Explicit sampling direct emitters */
             L += throughput * scene->uniformlySampleLight(sampler, &its, &eQ, iterRay, nullptr, true, false);
 

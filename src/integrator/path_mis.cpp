@@ -45,6 +45,13 @@ public:
                 eQ = EmitterQueryRecord(-iterRay.d, its.perturbFrame.n);
                 L += throughput * its.mesh->getEmitter()->eval(eQ) * bsdfPortion;
             }
+
+            if (its.mesh->getBSDF()->isNone()) {
+                Ray3f temp = Ray3f(its.p, iterRay.d);
+                memcpy(&iterRay, &temp, sizeof(Ray3f));
+                bounces--;
+                continue;
+            }
             
             /* Multiple importance sampling (MIS):
                Sampling direct emitters, rectified by d^2/theta */
