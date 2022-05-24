@@ -48,7 +48,7 @@ public:
             
             /* Multiple importance sampling (MIS):
                Sampling direct emitters, rectified by d^2/theta */
-            light = scene->uniformlySampleLight(sampler, &its, &eQ, iterRay);
+            light = scene->uniformlySampleLight(sampler, &its, &eQ, iterRay, nullptr, true, false);
             if (light.getLuminance() > 0) {
                 /* Only consider visible light, cos > 0
                    Convert PDF in area to PDF in solid angles */

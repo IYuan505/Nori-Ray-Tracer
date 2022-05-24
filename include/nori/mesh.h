@@ -170,7 +170,7 @@ public:
     float getArea() const { return m_dpdf->getSum(); }
 
     /// Return a pointer to the BSDF associated with this mesh
-    const BSDF *getBSDF() const { return m_bsdf; }
+    BSDF *getBSDF() const { return m_bsdf; }
 
     /// Return a pointer to the Texture associated with this mesh
     const Texture *getTexture() const { return m_texture; }

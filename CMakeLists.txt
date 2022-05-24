@@ -45,18 +45,20 @@ include_directories(
 add_executable(nori
 
   # Header files
+  include/nori/accel.h
   include/nori/bbox.h
   include/nori/bitmap.h
   include/nori/block.h
   include/nori/bsdf.h
-  include/nori/accel.h
   include/nori/camera.h
   include/nori/color.h
   include/nori/common.h
+  include/nori/denoiser.h
   include/nori/dpdf.h
+  include/nori/emitter.h
   include/nori/frame.h
   include/nori/integrator.h
-  include/nori/emitter.h
+  include/nori/medium.h
   include/nori/mesh.h
   include/nori/object.h
   include/nori/parser.h
@@ -65,50 +67,52 @@ add_executable(nori
   include/nori/rfilter.h
   include/nori/sampler.h
   include/nori/scene.h
+  include/nori/texture.h
   include/nori/timer.h
   include/nori/transform.h
   include/nori/vector.h
   include/nori/warp.h
-  include/nori/denoiser.h
-  include/nori/texture.h
 
   # Source code files
+  src/accelerator/accel.cpp
+  src/camera/perspective.cpp
   src/core/bitmap.cpp
   src/core/block.cpp
-  src/accelerator/accel.cpp
   src/core/chi2test.cpp
   src/core/common.cpp
-  src/material/diffuse.cpp
   src/core/gui.cpp
-  src/sampler/independent.cpp
-  src/main/main.cpp
   src/core/mesh.cpp
   src/core/obj.cpp
   src/core/object.cpp
   src/core/parser.cpp
-  src/camera/perspective.cpp
   src/core/proplist.cpp
-  src/filter/rfilter.cpp
   src/core/scene.cpp
   src/core/ttest.cpp
   src/core/warp.cpp
-  src/material/microfacet.cpp
-  src/material/mirror.cpp
-  src/material/dielectric.cpp
-  src/integrator/normals.cpp
-  src/integrator/simple.cpp
-  src/integrator/ao.cpp
-  src/light/area.cpp
-  src/integrator/whitted.cpp
-  src/light/emitter_rect.cpp
-  src/light/emitter_disk.cpp
-  src/light/emitter_sphere.cpp
-  src/integrator/emitter_whitted.cpp
-  src/integrator/path_mats.cpp
-  src/integrator/path_ems.cpp
-  src/integrator/path_mis.cpp
-  src/material/microfacet_refraction.cpp
   src/denoiser/bm3d_denoiser.cpp
+  src/filter/rfilter.cpp
+  src/integrator/ao.cpp
+  src/integrator/emitter_whitted.cpp
+  src/integrator/normals.cpp
+  src/integrator/path_ems.cpp
+  src/integrator/path_mats.cpp
+  src/integrator/path_mis.cpp
+  src/integrator/simple.cpp
+  src/integrator/vol_path.cpp
+  src/integrator/whitted.cpp
+  src/light/area.cpp
+  src/light/emitter_disk.cpp
+  src/light/emitter_rect.cpp
+  src/light/emitter_sphere.cpp
+  src/main/main.cpp
+  src/material/dielectric.cpp
+  src/material/diffuse.cpp
+  src/material/microfacet.cpp
+  src/material/microfacet_refraction.cpp
+  src/material/mirror.cpp
+  src/material/none.cpp
+  src/media/homogeneous.cpp
+  src/sampler/independent.cpp
   src/texture/constant_texture.cpp
   src/texture/image_texture.cpp
 

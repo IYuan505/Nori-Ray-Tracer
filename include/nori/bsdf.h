@@ -19,6 +19,7 @@
 #pragma once
 
 #include <nori/object.h>
+#include <nori/medium.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -110,6 +111,34 @@ public:
      * or not to store photons on a surface
      */
     virtual bool isDiffuse() const { return false; }
+
+    /**
+     *  \brief Return whether or not this BSDF is used for nothing,
+     *  but to define a boundary of the mesh
+     */
+    virtual bool isNone() const { return false; }
+
+    const Medium *getIntMedium() const { return m_int_medium; }
+    const Medium *getOutMedium() const { return m_out_medium; }
+    void setOutMedium(const Medium *out_medium) { m_out_medium = out_medium; }
+
+    void addChild(NoriObject *obj) {
+        switch (obj->getClassType()) {
+            case EMedium:
+                if (m_int_medium)
+                    throw NoriException("There can only be one medium per mesh!");
+                m_int_medium = static_cast<Medium *>(obj);
+                break;
+                
+            default:
+                throw NoriException("Scene::addChild(<%s>) is not supported!",
+                    classTypeName(obj->getClassType()));
+        }
+    }
+
+private:
+    const Medium *m_int_medium = nullptr;
+    const Medium *m_out_medium = nullptr;
 };
 
 NORI_NAMESPACE_END

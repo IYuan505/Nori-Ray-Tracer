@@ -36,6 +36,7 @@ Scene::~Scene() {
     delete m_camera;
     delete m_integrator;
     delete m_denoiser;
+    delete m_medium;
 }
 
 void Scene::activate() {
@@ -96,6 +97,12 @@ void Scene::addChild(NoriObject *obj) {
                 throw NoriException("There can only be one denoiser per scene!");
             m_denoiser = static_cast<Denoiser *>(obj);
             break;
+
+        case EMedium:
+            if (m_medium)
+                throw NoriException("There can only be one global medium per scene!");
+            m_medium = static_cast<Medium *>(obj);
+            break;
             
         default:
             throw NoriException("Scene::addChild(<%s>) is not supported!",
@@ -103,11 +110,14 @@ void Scene::addChild(NoriObject *obj) {
     }
 }
 
-Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its, EmitterQueryRecord *eQ, const Ray3f &ray) const {
+Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its, 
+    EmitterQueryRecord *eQ, const Ray3f &ray, const Medium *medium, 
+    bool surfaceIntersection, bool handleMedia) const {
     Intersection itsShadow;     // Intersection for shadow ray
     Ray3f shadowRay;            // A shadow ray from intersection point to the light
     Color3f emitterLight = {0}; // Light of emitter
     Color3f fr;                 // Reflection or refraction factor
+    Color3f tr;                 // Light transmittance
     uint32_t chosenIdx;         // Chosen idx of emitter
     uint32_t emitterIdxSize = 0;// Number of emitters
     Mesh *mesh = NULL;          // The sampled emitter's mesh
@@ -155,18 +165,29 @@ Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its, Emitter
     eQ->wo = - pToLight.normalized();
     emitterLight = emitter->eval(*eQ);
 
-    /* Compute the bsdf's fr */
-    fr = its->mesh->getBSDF()->eval(
-        BSDFQueryRecord(its->shFrame.toLocal(pToLight).normalized(), 
-            its->shFrame.toLocal(- ray.d).normalized(), ESolidAngle));
-    fr *= its->mesh->getTexture()->eval(its->uv);
+    if (surfaceIntersection) {
+        /* Compute the bsdf's fr */
+        fr = its->mesh->getBSDF()->eval(
+            BSDFQueryRecord(its->shFrame.toLocal(pToLight).normalized(), 
+                its->shFrame.toLocal(-ray.d).normalized(), ESolidAngle));
+        fr *= its->mesh->getTexture()->eval(its->uv);
 
-    /* Compute the geometric term */
-    geo = ((its->perturbFrame.n.normalized()).dot(pToLight.normalized()))
-        * ((eQ->n.normalized()).dot(- pToLight.normalized())) / (pToLight.dot(pToLight));
-    geo = abs(geo);
-    
-    return Color3f(fr * emitterLight * geo * emitterIdxSize / eQ->pdf);
+        /* Compute the geometric term */
+        geo = ((its->perturbFrame.n.normalized()).dot(pToLight.normalized()))
+            * ((eQ->n.normalized()).dot(- pToLight.normalized())) / (pToLight.dot(pToLight));
+        geo = abs(geo);
+        
+        if (!handleMedia || medium == nullptr)
+            return Color3f(fr * emitterLight * geo * emitterIdxSize / eQ->pdf);
+        else {
+            tr = medium->tr(Ray3f(eQ->p, -eQ->d, 0, pToLight.norm()), sampler);
+            return Color3f(fr * emitterLight * geo * tr * emitterIdxSize / eQ->pdf);
+        }
+    } else {
+        fr = medium->p((-ray.d).normalized(), pToLight.normalized());
+        tr = medium->tr(Ray3f(eQ->p, -eQ->d, 0, pToLight.norm()), sampler);
+        return Color3f(fr * emitterLight * tr * emitterIdxSize / eQ->pdf);
+    }
 }
 
 

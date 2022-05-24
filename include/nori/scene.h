@@ -21,6 +21,7 @@
 #include <nori/accel.h>
 #include <nori/bsdf.h>
 #include <nori/denoiser.h>
+#include <nori/medium.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -58,7 +59,10 @@ public:
     const Sampler *getSampler() const { return m_sampler; }
 
     /// Return a pointer to the scene's denoiser
-    const Denoiser *getDenoiser() const {return m_denoiser; }
+    const Denoiser *getDenoiser() const { return m_denoiser; }
+
+    /// Return a pointer to the scene's medium
+    const Medium *getMedium() const { return m_medium; }
 
     /// Return a pointer to the scene's sample generator
     Sampler *getSampler() { return m_sampler; }
@@ -121,7 +125,10 @@ public:
     void addChild(NoriObject *obj);
 
     /// Uniformaly sample an emitter in the scenen
-    Color3f uniformlySampleLight(Sampler *sampler, Intersection *its, EmitterQueryRecord *eQ, const Ray3f &ray) const;
+    Color3f uniformlySampleLight(
+        Sampler *sampler, Intersection *its, 
+        EmitterQueryRecord *eQ, const Ray3f &ray, 
+        const Medium *medium, bool surfaceIntersection, bool handleMedia) const;
 
     /// Return a string summary of the scene (for debugging purposes)
     std::string toString() const;
@@ -135,6 +142,7 @@ private:
     Accel *m_accel = nullptr;
     Emitter *m_emitter = nullptr;
     Denoiser *m_denoiser = nullptr;
+    Medium *m_medium = nullptr;
 };
 
 NORI_NAMESPACE_END

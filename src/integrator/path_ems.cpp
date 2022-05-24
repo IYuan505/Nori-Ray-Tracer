@@ -38,7 +38,7 @@ public:
             }
             
             /* Explicit sampling direct emitters */
-            L += throughput * scene->uniformlySampleLight(sampler, &its, &eQ, iterRay);
+            L += throughput * scene->uniformlySampleLight(sampler, &its, &eQ, iterRay, nullptr, true, false);
 
             /* Account for indirect light, we sample a new direction on this surface */
             BSDFQueryRecord bQ(its.shFrame.toLocal(-iterRay.d).normalized());
