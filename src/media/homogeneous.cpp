@@ -37,8 +37,8 @@ public:
 	    float pdf = (density[0] + density[1] + density[2]) / 3;
 	    if (pdf == 0) return 0.0f;
 
-	    Color3f real_tr = Color3f(tr[0] / pdf, tr[1] / pdf, tr[2] / pdf);
-	    return sampledMedium ? (real_tr * m_sigma_s) : real_tr;
+	    tr = Color3f(tr[0] / pdf, tr[1] / pdf, tr[2] / pdf);
+	    return sampledMedium ? (tr * m_sigma_s) : tr;
 	}
 
     float sample_p(const Vector3f &wo, Vector3f *wi, const Point2f &u) const {
@@ -51,6 +51,10 @@ public:
 
 	Color3f albedo() const {
 		return m_sigma_s /  m_sigma_t;
+	}
+
+	Color3f getS() const {
+		return m_sigma_s;
 	}
 
 	std::string toString() const {

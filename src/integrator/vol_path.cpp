@@ -44,17 +44,25 @@ public:
             
             /* Intersect with a medium (true) or a surface (false) */
             if (mediumIts.t < its.t) {
+                L += throughput * scene->uniformlySampleLight(sampler, &mediumIts, &eQ, iterRay, currentMedium, false);
                 /* Sample a new outgoing direction */
                 Vector3f wo = -iterRay.d, wi;
                 currentMedium->sample_p(wo, &wi, sampler->next2D());
                 Ray3f temp = Ray3f(mediumIts.p, wi.normalized());
                 memcpy(&iterRay, &temp, sizeof(Ray3f));
                 throughput *= currentMedium->albedo();
+                specularBounce = false;
             } else {
                 if (!foundIntersection) break;
-                if (its.mesh->isEmitter()) {
+                if ((bounces == 0 || specularBounce) && its.mesh->isEmitter()) {
+                // if (its.mesh->isEmitter()) {
                     eQ = EmitterQueryRecord(-iterRay.d, its.shFrame.n);
                     L += throughput * its.mesh->getEmitter()->eval(eQ);
+                }
+
+                if (!its.mesh->getBSDF()->isNone()) {
+                    /* Explicit sampling direct emitters */
+                    L += throughput * scene->uniformlySampleLight(sampler, &its, &eQ, iterRay, currentMedium, true);
                 }
 
                 /* Account for indirect light, we sample a new direction on this surface */
@@ -69,14 +77,17 @@ public:
                 memcpy(&iterRay, &temp, sizeof(Ray3f));
                 throughput *= fr;
 
+                /* None material does not change specular or not */
+                if (!its.mesh->getBSDF()->isNone())
+                    specularBounce = bQ.measure == EDiscrete;
+
                 /* Enter or exit the medium */
                 if (its.shFrame.cosTheta(bQ.wi) * its.shFrame.cosTheta(bQ.wo) < 0.0f) {
-                    if (currentMedium != its.mesh->getBSDF()->getIntMedium()) {
-                        its.mesh->getBSDF()->setOutMedium(currentMedium);
+                    if (its.shFrame.cosTheta(bQ.wi) > 0.0f) {
                         currentMedium = its.mesh->getBSDF()->getIntMedium();
                     }
                     else {
-                        currentMedium = its.mesh->getBSDF()->getOutMedium();
+                        currentMedium = scene->getMedium();
                     }
                 }
             }

@@ -18,7 +18,7 @@ public:
 
     /// Draw a a sample from the BRDF model
     Color3f sample(BSDFQueryRecord &bRec, const Point2f &sample) const { 
-        bRec.measure = EDiscrete;
+        bRec.measure = ESolidAngle;
         bRec.wo = -bRec.wi;
         bRec.eta = 1.0f;
         return 1.0f;

@@ -111,22 +111,22 @@ void Scene::addChild(NoriObject *obj) {
 }
 
 Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its, 
-    EmitterQueryRecord *eQ, const Ray3f &ray, const Medium *medium, 
-    bool surfaceIntersection, bool handleMedia) const {
+    EmitterQueryRecord *eQ, const Ray3f &ray, const Medium *initMedium, bool surfaceIntersection) const {
     Intersection itsShadow;     // Intersection for shadow ray
     Ray3f shadowRay;            // A shadow ray from intersection point to the light
+    const Medium *currentMedium;// Current medium of the ray
     Color3f emitterLight = {0}; // Light of emitter
     Color3f fr;                 // Reflection or refraction factor
-    Color3f tr;                 // Light transmittance
+    Color3f tr = {1.0f};        // Medium transmittance
     uint32_t chosenIdx;         // Chosen idx of emitter
     uint32_t emitterIdxSize = 0;// Number of emitters
     Mesh *mesh = NULL;          // The sampled emitter's mesh
     Emitter * emitter;          // The sampled emitter
     Vector3f pToLight;          // Vector from point to light
-    float geo;                  // Geometric term
     float maxt;                 // Maxt of the shadow ray
     int visibility;             // Visibility from p to light
-    
+
+    currentMedium = initMedium;
     /* Explicit direct emitter sampling
        Select a sampling emitter uniformly */
     for (uint32_t i = 0; i < m_meshes.size(); ++i) {
@@ -159,12 +159,28 @@ Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its,
     while (1) {
         visibility = 1 - (int) m_accel->rayIntersect(shadowRay, itsShadow, true);
         if (visibility == 0 && itsShadow.mesh->getBSDF()->isNone()) {
+            shadowRay.maxt = itsShadow.t;
+            if (currentMedium != nullptr)
+                tr *= currentMedium->tr(shadowRay, sampler);
+
+            if (itsShadow.shFrame.cosTheta(itsShadow.shFrame.toLocal(shadowRay.d)) > 0) {
+                /* Coming from inside the medium */
+                currentMedium = m_medium;
+            } else {
+                /* Comming outside from the medium */
+                currentMedium = itsShadow.mesh->getBSDF()->getIntMedium();
+            }
+
             maxt -= itsShadow.t;
             Ray3f temp = Ray3f(itsShadow.p, shadowRay.d, 1e-4f, maxt);
             memcpy(&shadowRay, &temp, sizeof(Ray3f));
-            continue;
+        } else {
+            if (visibility == 1 && currentMedium != nullptr) {
+                /* No intersection is found, use the maxt of shadowRay directly */
+                tr *= currentMedium->tr(shadowRay, sampler);
+            }
+            break;
         }
-        break;
     }
 
     if (visibility == 0)
@@ -173,30 +189,21 @@ Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its,
     /*  Compute the radiance */
     eQ->wo = - pToLight.normalized();
     emitterLight = emitter->eval(*eQ);
+    eQ->pdf *= pToLight.dot(pToLight) / abs(eQ->n.normalized().dot(-pToLight.normalized()));
 
+    
     if (surfaceIntersection) {
         /* Compute the bsdf's fr */
         fr = its->mesh->getBSDF()->eval(
             BSDFQueryRecord(its->shFrame.toLocal(pToLight).normalized(), 
                 its->shFrame.toLocal(-ray.d).normalized(), ESolidAngle));
         fr *= its->mesh->getTexture()->eval(its->uv);
-
-        /* Compute the geometric term */
-        geo = ((its->perturbFrame.n.normalized()).dot(pToLight.normalized()))
-            * ((eQ->n.normalized()).dot(- pToLight.normalized())) / (pToLight.dot(pToLight));
-        geo = abs(geo);
-        
-        if (!handleMedia || medium == nullptr)
-            return Color3f(fr * emitterLight * geo * emitterIdxSize / eQ->pdf);
-        else {
-            tr = medium->tr(Ray3f(eQ->p, -eQ->d, 0, pToLight.norm()), sampler);
-            return Color3f(fr * emitterLight * geo * tr * emitterIdxSize / eQ->pdf);
-        }
+        fr *= abs(its->perturbFrame.n.normalized().dot(pToLight.normalized()));
     } else {
-        fr = medium->p((-ray.d).normalized(), pToLight.normalized());
-        tr = medium->tr(Ray3f(eQ->p, -eQ->d, 0, pToLight.norm()), sampler);
-        return Color3f(fr * emitterLight * tr * emitterIdxSize / eQ->pdf);
+        fr = initMedium->albedo() * initMedium->p(-ray.d.normalized(), pToLight.normalized());
     }
+
+    return Color3f(fr * emitterLight * tr * emitterIdxSize / eQ->pdf);
 }
 
 

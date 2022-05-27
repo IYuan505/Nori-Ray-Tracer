@@ -36,16 +36,16 @@ public:
                 eQ = EmitterQueryRecord(-iterRay.d, its.shFrame.n);
                 L += throughput * its.mesh->getEmitter()->eval(eQ);
             }
-            
+
             if (its.mesh->getBSDF()->isNone()) {
                 Ray3f temp = Ray3f(its.p, iterRay.d);
                 memcpy(&iterRay, &temp, sizeof(Ray3f));
                 bounces--;
                 continue;
             }
-
+            
             /* Explicit sampling direct emitters */
-            L += throughput * scene->uniformlySampleLight(sampler, &its, &eQ, iterRay, nullptr, true, false);
+            L += throughput * scene->uniformlySampleLight(sampler, &its, &eQ, iterRay, nullptr, true);
 
             /* Account for indirect light, we sample a new direction on this surface */
             BSDFQueryRecord bQ(its.shFrame.toLocal(-iterRay.d).normalized());

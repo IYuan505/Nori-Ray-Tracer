@@ -119,8 +119,6 @@ public:
     virtual bool isNone() const { return false; }
 
     const Medium *getIntMedium() const { return m_int_medium; }
-    const Medium *getOutMedium() const { return m_out_medium; }
-    void setOutMedium(const Medium *out_medium) { m_out_medium = out_medium; }
 
     void addChild(NoriObject *obj) {
         switch (obj->getClassType()) {
@@ -138,7 +136,6 @@ public:
 
 private:
     const Medium *m_int_medium = nullptr;
-    const Medium *m_out_medium = nullptr;
 };
 
 NORI_NAMESPACE_END

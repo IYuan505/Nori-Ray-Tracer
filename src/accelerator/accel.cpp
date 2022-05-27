@@ -18,6 +18,7 @@
 
 #include <nori/accel.h>
 #include <nori/timer.h>
+#include <nori/bsdf.h>
 #include <tbb/tbb.h>
 #include <Eigen/Geometry>
 #include <atomic>
@@ -438,8 +439,7 @@ bool Accel::rayIntersect(const Ray3f &_ray, Intersection &its, bool shadowRay) c
 
                 float u, v, t;
                 if (mesh->rayIntersect(idx, ray, u, v, t)) {
-                    if (shadowRay){
-                        its.t = t;
+                    if (shadowRay && (!mesh->getBSDF()->isNone())) {
                         its.mesh = mesh;
                         return true;
                     }

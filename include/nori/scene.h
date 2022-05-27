@@ -126,9 +126,8 @@ public:
 
     /// Uniformaly sample an emitter in the scenen
     Color3f uniformlySampleLight(
-        Sampler *sampler, Intersection *its, 
-        EmitterQueryRecord *eQ, const Ray3f &ray, 
-        const Medium *medium, bool surfaceIntersection, bool handleMedia) const;
+        Sampler *sampler, Intersection *its, EmitterQueryRecord *eQ, 
+        const Ray3f &ray, const Medium *globalMedium, bool surfaceIntersection) const;
 
     /// Return a string summary of the scene (for debugging purposes)
     std::string toString() const;

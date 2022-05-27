@@ -55,11 +55,10 @@ public:
             
             /* Multiple importance sampling (MIS):
                Sampling direct emitters, rectified by d^2/theta */
-            light = scene->uniformlySampleLight(sampler, &its, &eQ, iterRay, nullptr, true, false);
+            light = scene->uniformlySampleLight(sampler, &its, &eQ, iterRay, nullptr, true);
             if (light.getLuminance() > 0) {
-                /* Only consider visible light, cos > 0
-                   Convert PDF in area to PDF in solid angles */
-                lightProb = eQ.pdf * eQ.d * eQ.d / eQ.wo.dot(eQ.n);
+                /* Only consider visible light, cos > 0 */
+                lightProb = eQ.pdf;
                 BSDFQueryRecord bQLight(its.shFrame.toLocal(-iterRay.d).normalized(), 
                     its.shFrame.toLocal(-eQ.wo).normalized(), ESolidAngle);
                 bsdfProb = its.mesh->getBSDF()->pdf(bQLight);
