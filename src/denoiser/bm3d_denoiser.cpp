@@ -494,11 +494,10 @@ public:
             if (iters_taken == maxiters) break;
         }
         free(assignment);
-        if (mean1 >= mean2) {
-            sigma = mean1 + sqrt(var1);
-        }
+        if (mean1 <= mean2)
+            sigma = mean1 + 3 * sqrt(var1);
         else 
-            sigma = mean2 + sqrt(var2);
+            sigma = mean2 + 3 * sqrt(var2);
     }
 
     void noiseEstimation(std::vector<float> img, unsigned width, unsigned height, unsigned chnls,
