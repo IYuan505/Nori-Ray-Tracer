@@ -52,8 +52,6 @@ struct Intersection {
     float t;
     /// UV coordinates, if any
     Point2f uv;
-    /// Perturbed normal frame, if bump map
-    Frame perturbFrame;
     /// Shading frame (based on the shading normal)
     Frame shFrame;
     /// Geometric frame (based on the true geometry)

@@ -198,7 +198,7 @@ Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its,
             BSDFQueryRecord(its->shFrame.toLocal(pToLight).normalized(), 
                 its->shFrame.toLocal(-ray.d).normalized(), ESolidAngle));
         fr *= its->mesh->getTexture()->eval(its->uv);
-        fr *= abs(its->perturbFrame.n.normalized().dot(pToLight.normalized()));
+        fr *= abs(its->shFrame.n.normalized().dot(pToLight.normalized()));
     } else {
         fr = initMedium->albedo() * initMedium->p(-ray.d.normalized(), pToLight.normalized());
     }

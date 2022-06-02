@@ -34,15 +34,14 @@ public:
             /* If there is no intersection found, break from the loop */
             foundIntersection = scene->rayIntersect(iterRay, its);
             if (!foundIntersection) break;
-            its.perturbFrame = Frame(its.mesh->getTexture()->perturbNormal(its.uv, its.shFrame.n).normalized());
 
             /* Add the emitter light at path vertex */
             if (its.mesh->isEmitter()) {
                 /* Avoid double counting but also consider MIS
                    bsdfProb comes from the previous iteration */
-                lightProb = 1 / its.mesh->getArea() * its.t * its.t / -iterRay.d.dot(its.perturbFrame.n);
+                lightProb = 1 / its.mesh->getArea() * its.t * its.t / -iterRay.d.dot(its.shFrame.n);
                 bsdfPortion = (bounces == 0 || specularBounce) ? 1 : bsdfProb / (lightProb + bsdfProb);
-                eQ = EmitterQueryRecord(-iterRay.d, its.perturbFrame.n);
+                eQ = EmitterQueryRecord(-iterRay.d, its.shFrame.n);
                 L += throughput * its.mesh->getEmitter()->eval(eQ) * bsdfPortion;
             }
 

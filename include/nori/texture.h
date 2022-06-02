@@ -15,7 +15,7 @@ NORI_NAMESPACE_BEGIN
  */
 class Texture: public NoriObject {
 public:
-    Bitmap *readPNG2Bitmap(std::string file_path) const {
+    Bitmap *readPNG2Bitmap(std::string file_path, bool raw) const {
         unsigned char *rgb;
         unsigned w, h;
         unsigned int error = lodepng_decode24_file(&rgb, &w, &h, file_path.c_str());
@@ -28,27 +28,11 @@ public:
                 bitmap->coeffRef(h - y - 1, x)[0] = clamp(rgb[0] / 255.f, 0.0f, 1.0f);
                 bitmap->coeffRef(h - y - 1, x)[1] = clamp(rgb[1] / 255.f, 0.0f, 1.0f);
                 bitmap->coeffRef(h - y - 1, x)[2] = clamp(rgb[2] / 255.f, 0.0f, 1.0f);
+                if (!raw)
+                    bitmap->coeffRef(h - y - 1, x) = bitmap->coeffRef(h - y - 1, x).toLinearRGB();
             }
         }
         return bitmap;
-    }
-
-    Normal3f perturbNormal(const Point2f &uv, const Normal3f shadingNormal) const {
-        if (m_bump == nullptr)
-            return shadingNormal;
-
-        int y = uv.y() * m_bump->rows();
-        int x = uv.x() * m_bump->cols();
-        y = (int) clamp(y, 0, m_bump->rows()-1);
-        x = (int) clamp(x, 0, m_bump->cols()-1);
-
-        Vector3f perturbedNormal; 
-        for (int i = 0; i < 3; ++i)
-            perturbedNormal[i] = m_bump->coeffRef(y, x)[i];
-
-        Frame f = Frame(shadingNormal);
-        return f.toWorld(perturbedNormal);
-
     }
 
     /// Return the texture given the intersection uv
@@ -60,8 +44,6 @@ public:
      * */
     EClassType getClassType() const { return ETexture; }
 
-protected:
-    Bitmap *m_bump = nullptr;
 };
 
 NORI_NAMESPACE_END

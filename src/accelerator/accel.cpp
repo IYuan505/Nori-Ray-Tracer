@@ -499,10 +499,8 @@ bool Accel::rayIntersect(const Ray3f &_ray, Intersection &its, bool shadowRay) c
                 (bary.x() * N.col(idx0) +
                  bary.y() * N.col(idx1) +
                  bary.z() * N.col(idx2)).normalized());
-            its.perturbFrame = its.shFrame;
         } else {
             its.shFrame = its.geoFrame;
-            its.perturbFrame = its.shFrame;
         }
     }
 

@@ -14,14 +14,10 @@ public:
 
         /* Read image texture */
         if (access(texture_path.c_str(), F_OK ) != -1)
-            m_bitmap = readPNG2Bitmap(texture_path);
+            m_bitmap = readPNG2Bitmap(texture_path, false);
         else 
             throw NoriException(
                 "ImageTexture: image file does not exist!");
-
-        /* Read bump map if there is any */
-        if (access(bump_path.c_str(), F_OK ) != -1)
-            m_bump = readPNG2Bitmap(bump_path);
     }
 
     Color3f eval(const Point2f &uv) const {
