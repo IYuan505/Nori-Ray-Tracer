@@ -110,7 +110,8 @@ add_executable(nori
   src/material/microfacet.cpp
   src/material/microfacet_refraction.cpp
   src/material/mirror.cpp
-  src/material/none.cpp
+  src/material/null.cpp
+  src/material/conductor.cpp
   src/media/homogeneous.cpp
   src/sampler/independent.cpp
   src/texture/constant_texture.cpp

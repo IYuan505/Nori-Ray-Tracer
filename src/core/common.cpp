@@ -299,4 +299,27 @@ float fresnel(float cosThetaI, float extIOR, float intIOR) {
     return (Rs * Rs + Rp * Rp) / 2.0f;
 }
 
+float fresnel_conductor(float cosThetaI, float eta, float k) {
+    // Modified from "Optics" by K.D. Moeller, University Science Books, 1988
+    float cosThetaI2 = cosThetaI * cosThetaI,
+          sinThetaI2 = 1.f - cosThetaI2,
+          sinThetaI4 = sinThetaI2 * sinThetaI2;
+
+    float temp_1   = eta * eta - k * k - sinThetaI2,
+          a_2_pb_2 = std::sqrt(temp_1*temp_1 + 4.f * k * k * eta * eta),
+          a        = std::sqrt(.5f * (a_2_pb_2 + temp_1));
+
+    float term_1 = a_2_pb_2 + cosThetaI2,
+          term_2 = 2.f * cosThetaI * a;
+
+    float Rs = (term_1 - term_2) / (term_1 + term_2);
+
+    float term_3 = a_2_pb_2 * cosThetaI2 + sinThetaI4,
+          term_4 = term_2 * sinThetaI2;
+
+    float Rp = Rs * (term_3 - term_4) / (term_3 + term_4);
+
+    return .5f * (Rs + Rp);
+}
+
 NORI_NAMESPACE_END

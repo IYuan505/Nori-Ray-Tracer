@@ -439,7 +439,7 @@ bool Accel::rayIntersect(const Ray3f &_ray, Intersection &its, bool shadowRay) c
 
                 float u, v, t;
                 if (mesh->rayIntersect(idx, ray, u, v, t)) {
-                    if (shadowRay && (!mesh->getBSDF()->isNone())) {
+                    if (shadowRay && (!mesh->getBSDF()->isNull())) {
                         its.mesh = mesh;
                         return true;
                     }

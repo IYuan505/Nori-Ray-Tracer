@@ -45,7 +45,7 @@ public:
                 L += throughput * its.mesh->getEmitter()->eval(eQ) * bsdfPortion;
             }
 
-            if (its.mesh->getBSDF()->isNone()) {
+            if (its.mesh->getBSDF()->isNull()) {
                 Ray3f temp = Ray3f(its.p, iterRay.d);
                 memcpy(&iterRay, &temp, sizeof(Ray3f));
                 bounces--;

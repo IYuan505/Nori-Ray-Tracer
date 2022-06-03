@@ -60,7 +60,7 @@ public:
                     L += throughput * its.mesh->getEmitter()->eval(eQ);
                 }
 
-                if (!its.mesh->getBSDF()->isNone()) {
+                if (!its.mesh->getBSDF()->isNull()) {
                     /* Explicit sampling direct emitters */
                     L += throughput * scene->uniformlySampleLight(sampler, &its, &eQ, iterRay, currentMedium, true);
                 }
@@ -78,7 +78,7 @@ public:
                 throughput *= fr;
 
                 /* None material does not change specular or not */
-                if (!its.mesh->getBSDF()->isNone())
+                if (!its.mesh->getBSDF()->isNull())
                     specularBounce = bQ.measure == EDiscrete;
 
                 /* Enter or exit the medium */

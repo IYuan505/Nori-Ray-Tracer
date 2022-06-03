@@ -4,11 +4,11 @@
 NORI_NAMESPACE_BEGIN
 
 /**
- * \brief None BRDF model
+ * \brief Null BRDF model
  */
-class NoneBSDF : public BSDF {
+class NullBSDF : public BSDF {
 public:
-    NoneBSDF(const PropertyList &propList) {}
+    NullBSDF(const PropertyList &propList) {}
 
     /// Evaluate the BRDF model
     Color3f eval(const BSDFQueryRecord &bRec) const { return 1.0f; }
@@ -24,18 +24,18 @@ public:
         return 1.0f;
     }
 
-    bool isNone() const {
+    bool isNull() const {
         return true;
     }
 
     /// Return a human-readable summary
     std::string toString() const {
-        return "None BSDF";
+        return "Null BSDF";
     }
 
     EClassType getClassType() const { return EBSDF; }
 
 };
 
-NORI_REGISTER_CLASS(NoneBSDF, "none");
+NORI_REGISTER_CLASS(NullBSDF, "null");
 NORI_NAMESPACE_END

@@ -30,6 +30,8 @@
 #include <tbb/task_scheduler_init.h>
 #include <filesystem/resolver.h>
 #include <thread>
+#include <iostream>
+#include <cstdio>
 
 using namespace nori;
 
@@ -182,6 +184,10 @@ static void render(Scene *scene, const std::string &filename) {
         Bitmap *denoised_bitmap = denoiser->denoise(result.toBitmap(), scene->getSampler());
         denoised_bitmap->saveDenoisedPNG(outputName + "_denoised");
     }
+
+    for (int i = 0; i < (int) std::ceil(outputSize.y() / (float) NORI_BLOCK_SIZE); ++i) {
+        std::remove((outputName + "_tmp_" + std::to_string(i) + ".exr").c_str());
+    }
 }
 
 int main(int argc, char **argv) {
@@ -192,6 +198,7 @@ int main(int argc, char **argv) {
 
     std::string sceneName = "";
     std::string exrName = "";
+    std::string pngName = "";
 
     for (int i = 1; i < argc; ++i) {
         std::string token(argv[i]);
@@ -233,6 +240,8 @@ int main(int argc, char **argv) {
             } else if (path.extension() == "exr") {
                 /* Alternatively, provide a basic OpenEXR image viewer */
                 exrName = argv[i];
+            } else if (path.extension() == "png") {
+                pngName = argv[i];
             } else {
                 cerr << "Fatal error: unknown file \"" << argv[i]
                      << "\", expected an extension of type .xml or .exr" << endl;
@@ -260,6 +269,7 @@ int main(int argc, char **argv) {
             Bitmap bitmap(exrName);
             ImageBlock block(Vector2i((int) bitmap.cols(), (int) bitmap.rows()), nullptr);
             block.fromBitmap(bitmap);
+            bitmap.savePNG(pngName.substr(0, pngName.size()-4));
             nanogui::init();
             NoriScreen *screen = new NoriScreen(block);
             nanogui::mainloop(50.f);

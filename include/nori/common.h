@@ -257,6 +257,9 @@ extern Point2f sphericalCoordinates(const Vector3f &dir);
  */
 extern float fresnel(float cosThetaI, float extIOR, float intIOR);
 
+/* Fresnel for conductor */
+extern float fresnel_conductor(float cosThetaI, float eta, float k);
+
 /**
  * \brief Return the global file resolver instance
  *

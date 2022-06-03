@@ -116,7 +116,7 @@ public:
      *  \brief Return whether or not this BSDF is used for nothing,
      *  but to define a boundary of the mesh
      */
-    virtual bool isNone() const { return false; }
+    virtual bool isNull() const { return false; }
 
     const Medium *getIntMedium() const { return m_int_medium; }
 

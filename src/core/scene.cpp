@@ -158,7 +158,7 @@ Color3f Scene::uniformlySampleLight(Sampler *sampler, Intersection *its,
     
     while (1) {
         visibility = 1 - (int) m_accel->rayIntersect(shadowRay, itsShadow, true);
-        if (visibility == 0 && itsShadow.mesh->getBSDF()->isNone()) {
+        if (visibility == 0 && itsShadow.mesh->getBSDF()->isNull()) {
             shadowRay.maxt = itsShadow.t;
             if (currentMedium != nullptr)
                 tr *= currentMedium->tr(shadowRay, sampler);
