@@ -108,7 +108,7 @@ add_executable(nori
   src/material/dielectric.cpp
   src/material/diffuse.cpp
   src/material/microfacet.cpp
-  src/material/microfacet_refraction.cpp
+  src/material/rough_dielectric.cpp
   src/material/mirror.cpp
   src/material/null.cpp
   src/material/conductor.cpp

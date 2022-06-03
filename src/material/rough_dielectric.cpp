@@ -23,9 +23,9 @@
 
 NORI_NAMESPACE_BEGIN
 
-class MicrofacetRefraction : public BSDF {
+class RoughDielectric : public BSDF {
 public:
-    MicrofacetRefraction(const PropertyList &propList) {
+    RoughDielectric(const PropertyList &propList) {
         /* RMS surface roughness */
         m_alpha = propList.getFloat("alpha", 0.1f);
 
@@ -189,7 +189,7 @@ public:
 
     std::string toString() const {
         return tfm::format(
-            "MicrofacetRefraction[\n"
+            "RoughDielectric[\n"
             "  alpha = %f,\n"
             "  intIOR = %f,\n"
             "  extIOR = %f,\n"
@@ -204,5 +204,5 @@ private:
     float m_intIOR, m_extIOR;
 };
 
-NORI_REGISTER_CLASS(MicrofacetRefraction, "microfacet_refraction");
+NORI_REGISTER_CLASS(RoughDielectric, "rough_dielectric");
 NORI_NAMESPACE_END
