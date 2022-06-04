@@ -1,17 +1,3 @@
-/*
-    This file is part of Nori, a simple educational ray tracer
-    Copyright (c) 2015 by Wenzel Jakob
-    Nori is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License Version 3
-    as published by the Free Software Foundation.
-    Nori is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #include <nori/camera.h>
 #include <nori/rfilter.h>
 #include <nori/warp.h>
@@ -20,14 +6,13 @@
 NORI_NAMESPACE_BEGIN
 
 /**
- * \brief Perspective camera with depth of field
+ * \brief Thin lens camera with depth of field
  *
- * This class implements a simple perspective camera model. It uses an
- * infinitesimally small aperture, creating an infinite depth of field.
+ * This class implements a simple thin lens camera model.
  */
-class PerspectiveCamera : public Camera {
+class ThinlensCamera : public Camera {
 public:
-    PerspectiveCamera(const PropertyList &propList) {
+    ThinlensCamera(const PropertyList &propList) {
         /* Width and height in pixels. Default: 720p */
         m_outputSize.x() = propList.getInteger("width", 1280);
         m_outputSize.y() = propList.getInteger("height", 720);
@@ -42,6 +27,10 @@ public:
         /* Near and far clipping planes in world-space units */
         m_nearClip = propList.getFloat("nearClip", 1e-4f);
         m_farClip = propList.getFloat("farClip", 1e4f);
+
+        /* Focal length and lens radius for DoF */
+        m_focalLength = propList.getFloat("focalLength", 0.f);
+        m_lensRadius = propList.getFloat("lensRadius", 0.f);
 
         m_rfilter = NULL;
     }
@@ -99,6 +88,25 @@ public:
         ray.d = m_cameraToWorld * d;
         ray.mint = m_nearClip * invZ;
         ray.maxt = m_farClip * invZ;
+
+        /* Modify ray for DoF */
+        if (m_lensRadius > 0.f) {
+            /* Sample point on lens */
+            Point2f pLens = m_lensRadius * Warp::squareToUniformDisk(apertureSample);
+
+            /* Compute point on plan of focus */
+            float ft = m_focalLength / d.z();
+            Point3f pFocus = d * ft;
+
+            /* Update ray for effect of lens */
+            ray.o = Point3f(pLens.x(), pLens.y(), 0);
+            ray.d = (pFocus - ray.o).normalized();
+
+            /* Change to world coordinate */
+            ray.o = m_cameraToWorld * ray.o;
+            ray.d = m_cameraToWorld * ray.d;
+        }
+
         ray.update();
 
         return Color3f(1.0f);
@@ -121,11 +129,13 @@ public:
     /// Return a human-readable summary
     std::string toString() const {
         return tfm::format(
-            "PerspectiveCamera[\n"
+            "ThinlensCamera[\n"
             "  cameraToWorld = %s,\n"
             "  outputSize = %s,\n"
             "  fov = %f,\n"
             "  clip = [%f, %f],\n"
+            "  aperture = %f,\n"
+            "  focalLength = %f,\n"
             "  rfilter = %s\n"
             "]",
             indent(m_cameraToWorld.toString(), 18),
@@ -133,6 +143,8 @@ public:
             m_fov,
             m_nearClip,
             m_farClip,
+            m_lensRadius,
+            m_focalLength,
             indent(m_rfilter->toString())
         );
     }
@@ -143,7 +155,9 @@ private:
     float m_fov;
     float m_nearClip;
     float m_farClip;
+    float m_lensRadius;
+    float m_focalLength;
 };
 
-NORI_REGISTER_CLASS(PerspectiveCamera, "perspective");
+NORI_REGISTER_CLASS(ThinlensCamera, "thinlens");
 NORI_NAMESPACE_END

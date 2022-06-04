@@ -76,6 +76,7 @@ add_executable(nori
   # Source code files
   src/accelerator/accel.cpp
   src/camera/perspective.cpp
+  src/camera/thinlens.cpp
   src/core/bitmap.cpp
   src/core/block.cpp
   src/core/chi2test.cpp

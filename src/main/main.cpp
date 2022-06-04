@@ -177,16 +177,15 @@ static void render(Scene *scene, const std::string &filename) {
     std::unique_ptr<Bitmap> bitmap(result.toBitmap());
     bitmap->saveEXR(outputName);
     bitmap->savePNG(outputName);
+    for (int i = 0; i < (int) std::ceil(outputSize.y() / (float) NORI_BLOCK_SIZE); ++i) {
+        std::remove((outputName + "_tmp_" + std::to_string(i) + ".exr").c_str());
+    }
 
     const Denoiser *denoiser = scene->getDenoiser();
     if (denoiser) {
         /* denoiser only applies to PNG (0-255) */
         Bitmap *denoised_bitmap = denoiser->denoise(result.toBitmap(), scene->getSampler());
         denoised_bitmap->saveDenoisedPNG(outputName + "_denoised");
-    }
-
-    for (int i = 0; i < (int) std::ceil(outputSize.y() / (float) NORI_BLOCK_SIZE); ++i) {
-        std::remove((outputName + "_tmp_" + std::to_string(i) + ".exr").c_str());
     }
 }
 
