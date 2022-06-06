@@ -1,21 +1,19 @@
 **Final Project Report**
 
-Student name:
+Student name: Qiyuan Liang
 
-Sciper number:
+Sciper number: 323093
 
 
 Final render
 ============
 
-Include your final render here.
-
+![Final rendered image](project_denoised.png)
 
 Motivation
 ==========
 
-Summarize your motivation for rendering this scene and describe how it connects to the theme (this
-can be adapted from your project proposal).
+The scene tries to depict the **loop** of death and rebirth, where the death is symbolized by the skull inside the picture and the rebirth is symbolized by the living plants and fireflies.
 
 
 Feature list
@@ -31,40 +29,330 @@ made after submission, if any).
         <th>Adjusted point count</th>
     </tr>
     <tr>
-        <td>Feature 1</td>
+        <td>Textures or Procedural images</td>
+        <td>10</td>
+        <td>10</td>
+    </tr>
+    <tr>
+        <td>Depth of Field</td>
+        <td>10</td>
+        <td>10</td>
+    </tr>
+    <tr>
+        <td>Simple Extra BSDFs *[Changed from Bumpmap (10 pts)]*</td>
+        <td>10</td>
+        <td>10</td>
+    </tr>
+    <tr>
+        <td>Basic Denoising</td>
         <td>20</td>
         <td>20</td>
     </tr>
     <tr>
-        <td>Feature 2</td>
+        <td>Homogeneous Participating Media</td>
         <td>30</td>
-        <td>15</td>
-    </tr>
-    <tr>
-        <td>Feature ...</td>
-        <td>...</td>
-        <td>...</td>
+        <td>30</td>
     </tr>
     <tr>
         <td><strong>Total</strong></td>
-        <td>95</td>
+        <td>80</td>
         <td>80</td>
     </tr>
 </table>
 
 
-
-Feature 1
+Textures or Procedural images
 =========
+The implementation could be found in `src/texture` folder.
 
-Description, design choices and **validation** for feature 1.
+## Description
+Besides physical characteristics described by materials, textures add spatial variation to them. The implemented texture is image texture, which reads a *PNG* file as the texture of a mesh object.
+
+To map a texture onto the object correctly, the mesh object is first mapped inside the blender, which gives each vertex a UV coordinate. Next, after the ray intersection procedure, each intersection found has its own UV coordinate, computed as an interpolation of the intersected triangle's three UV coordinates. After obtaining the UV coordinates, the mapping from the UV coordinates to the real texture value is performed. The mapping implemented is 2D *(u, v)* mapping, which is the most widely used in real-world scenarios.
+
+## Design choices
+### General design choices
+PBRT suggests that the texture is implemented as a child property of the BSDF, and its value gets evaluated during the evaluation function of the BSDF. However, it requires fundamental changes to the existing code base. Therefore, I chose to achieve the same result by specifying texture as a child property of the Mesh.
+
+As a consequence, the evaluation of the real reflectance is computed as the value returned by BSDF times the value returned by Texture. The integrator is responsible to call the texture evaluation of the mesh object. Each mesh object could have one texture specified. By default, it is a constant texture, which returns `1.0f` and does not change the value returned by BSDF.
+
+### Image textures
+The texture file is read in PNG format. It is directly stored as a 2D array. No antialiasing is implemented. One notice is that PNG files are already tone-mapped. Therefore, using them as texture requires an additional transformation from the sRGB space to linear RGB space. The PNG is loaded with a public light-weight library named `lodepng`, included in `ext` folder.
+
+### 2D *(u, v)* mapping
+Without further manipulation,  the 2D *(u, v)* mapping directly translates the UV coordinates into indexes inside the image, by multiplying the resolution. Its value is clamped to avoid any out-of-bounds array access.
 
 
-Feature 2
+## Validation
+The validation of this feature is done in two steps. First, it compares the rendered image with or without textures using Nori. Second, it compares images rendered by Mitsuba and by Nori. The `xml` file used by Mitsuba is a literal translation of the `xml` file used by Nori. Both images used the `path` integrator with the same sample counts.
+
+
+### With or without texture
+A simple show case of the image texture.
+<div class="twentytwenty-container">
+    <img src="texture/without_texture.png" alt="Without texture">
+    <img src="texture/with_texture.png" alt="With texture">
+</div>
+
+### Comparison to Mitsuba
+Textured Cornell box, the left is the reference image produced by Mitsuba. Both are rendered with the path integrator with 256 samples per pixel. <span style="color:red"> Mitsuba has a small scene translation compared to Nori, probably due to different precision in handling camera to world transformation. All following images rendered by Mitsuba have the same issue. Hopefully, it does not introduce any trouble in comparing two results.</span>
+<div class="twentytwenty-container">
+    <img src="texture/cbox-texture-ref.png" alt="Reference">
+    <img src="texture/cbox-texture.png" alt="Mine">
+</div>
+
+Texture on a plane, the left is the reference image produced by Mitsuba. Both are rendered with the path integrator with 128 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="texture/plane-texture-ref.png" alt="Reference">
+    <img src="texture/plane-texture.png" alt="Mine">
+</div>
+
+
+
+
+
+Depth of Field
 =========
+The implementation could be found in `src/camera/thinlens.cpp`.
 
-Description, design choices and **validation** for feature 2.
+## Description
+A perspective camera assumes an extremely small aperture, which is not practical in reality. Real cameras have a lens system with a much larger aperture and a focal length. A point that is not on the focal plane projects into a disk on the film plane. As a result, objects that are out-of-focus (not on the focal plane) become blurry. The larger the aperture, the greater the blurry effect. A companion term, depth of field, describes the distance between the nearest and furthest objects that are in sharp focus in an image. Sharp focus means a point in the 3D world only projects into one pixel into the film plane. In other words, the circle of confusion is smaller than the pixel size. To simulate the effect, the thin-lens camera model is created, which requires two additional parameters compared to the perspective camera, namely focal length and aperture radius.
 
+## Design choices
+Simulating a thin-lens camera in Nori is remarkably straightforward. Since we are generating rays from the camera, the goal is to find out all rays that could have gone to a given pixel. With a perspective camera, the rays only have a small variation inside the pixel. Now, given a lens model, there is one additional refraction, which gives the rays a much larger variation. In practice, we are not able to enumerate all rays, but use Monte Carlo sampling to simulate the process. Given the goal, the implementation is as follows:
+1. Given a pixel, find its corresponding point on the focal plane. This could be done easily by generating a ray that goes through the center of the lens. Since the ray's origin is already at the center, the point could be easily computed using similar triangles.
+2. Sample a point on the thin lens. Having found the corresponding point on the focal plane, any ray that goes through it will finally converge to the same point on the film. Therefore, we could randomly generate a point on the thin lens using `squareToUniformDisk`.
+3. Connect the sampled point on the thin lens and the film's corresponding point on the focal plane to generate a new ray. Now, anything on this new ray will be able to reach the sampled pixel. The sampled pixel's value is given by the average of all these rays. Therefore, it requires more rays to converge to a smooth depth of field.
+
+
+## Validation
+Similar to the texture, the validation of this feature is done in two steps. First, it compares the rendered image with or without DoF using Nori. Second, it compares images rendered by Mitsuba and by Nori. The `xml` file used by Mitsuba is a literal translation of the `xml` file used by Nori. Both images used the `path` integrator with the same sample counts.
+
+### With or without DoF
+A simple show case of the DoF. 
+<div class="twentytwenty-container">
+    <img src="dof/without_dof.png" alt="Without DoF">
+    <img src="dof/with_dof.png" alt="With DoF">
+</div>
+
+### Comparison to Mitsuba
+Cornell box (depth of field), the left is the reference image produced by Mitsuba. Both are rendered with the path integrator with 256 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="dof/cbox-dof-ref.png" alt="Reference">
+    <img src="dof/cbox-dof.png" alt="Mine">
+</div>
+
+A line of cubes (depth of field), the left is the reference image produced by Mitsuba. Both are rendered with the path integrator with 256 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="dof/cubes-dof-ref.png" alt="Reference">
+    <img src="dof/cubes-dof.png" alt="Mine">
+</div>
+
+
+
+
+
+Simple Extra BSDFs (Smooth Conductor)
+=========
+The implementation could be found in `src/material/conductor.cpp`.
+
+## Description
+Conductors are materials that allow electricity to flow through them. Typical conductors are metals. The chosen BSDF, the smooth conductor, is similar to the mirror material in the sense that they are all based on a Dirac delta function. In other words, they only reflect light into a specific direction given an incident direction. However, smooth conductors change the color of light after reflection while the mirror does not. Smooth conductors are also similar to the dielectric material in the sense that they all follow the same Fresnel equations. The difference is that conductors have a complex-valued index of refraction. Also, light entering conductors are quickly absorbed in the scale of micrometers, therefore, its transmission is not modeled in the implementation.
+
+## Design choices
+### Fresnel conductors
+Given an incident angle, the Fresnel equation computes the amount of light that gets reflected. The remaining portion gets absorbed. The Fresnel equation for conductors is different from the one that is used by the dielectric, where only real numbers are present. The imaginary number is computed explicitly to obtain the correct value back. We only consider that light travels from dielectric to conductors here. The case from conductors to conductors is out of scope.
+
+### BSDF interface
+Smooth conductors implement a standard form of the BSDF interface. For the `eval` and `pdf` functions, they both evaluate to 0, given its Diract delta nature. For the `sample` function, it computes the outgoing direction of light same as the mirror BSDF. Besides, `sample` function computes the portion of light that gets reflected by taking the Fresnel equation into account. R, G, and B channels are computed separately.
+
+## Validation
+The validation of this feature is done by comparing images rendered using Mitsuba and Nori with the same conductors specified.
+
+### Comparison to Mitsuba
+Cornell box (conductor), the left is the reference image produced by Mitsuba. Both are rendered with the path integrator with 256 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="extra_BSDF/cbox-conductor-ref.png" alt="Reference">
+    <img src="extra_BSDF/cbox-conductor.png" alt="Mine">
+</div>
+
+
+Piles of mesh (conductor), the left is the reference image produced by Mitsuba. Both are rendered with the path integrator with 256 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="extra_BSDF/piles-ref.png" alt="Reference">
+    <img src="extra_BSDF/piles.png" alt="Mine">
+</div>
+
+
+Basic Denoising
+=========
+The implementation could be found in `src/denoiser/bm3d_denoiser.cpp`.
+
+## Description
+The noise of rendering could be reduced by increasing the sample count. However, to reduce the noise sigma to half, four times of sample count is required on average. The exponential increase makes it extremely hard to obtain a noise-free image for some scenes. 
+
+Denoising tries to solve the problem of obtaining a noise-free image from another perspective. It is used as a post-processing technique, which reads the noisy image, and tries to produce the noise-free image directly.  However, it is not at no cost. Noise means the loss of information from a clear image, especially high-frequency signals. It is essentially hard to recover these high-frequency signals from the noise. Even if the denoiser manages to produce new high-frequency details, these details could be totally wrong. Depending on the techniques used, denoisers could be roughly categorized into two, i.e. traditional methods and deep learning methods. Traditional methods are based on some prior assumptions about the noisy image. When the assumption breaks, the denoiser fails to function. Deep learning methods dominates recent years. However, the performance is highly dependent on the match of the training data and the data in the real use case. All the previous words try to state the fact that the image produced by the denoiser is biased. It should be used with caution to obtain a satisfactory result.
+
+Nevertheless, denoising does have its own advantages. First, it is a time saving from long rendering. Denoisers are usually good at handling images with low noise. This noise would otherwise take a great deal of time for the sampling strategy to eliminate, only for a minimal improvement. In such a case, denoiser could be a great choice. Second, rendering is not like ordinary use cases of denoising where only the noisy image is available. There is much more information that a render engine could generate to improve the performance of the denoiser. For example, the texture data could be used to recover the lost high-frequency details, which is much more accurate than generating without it. Also, the surface normal and depth information could be obtained cheaply as additional information to the denoiser. Besides, instead of using denoiser only as a post-processing technique, it could also be involved in the rendering loop too. The estimated noise could serve as guidance to the rendering engine about where the majority of the noise is placed. As a result, the rendering engine could make a better strategy of sampling and give noisy areas more samples. This kind of technique is named adaptive rendering and has improved the performance of pure Monte Carlo sampling a lot.
+
+For the following parts of the section, only a post-processing denoiser is implemented and discussed. The algorithm used is a global wise noise sigma estimation and a classic denoiser. More advanced techniques could be found in the literature.
+
+## Design choices
+The main algorithm used is block matching and 3D filtering (BM3D). As a traditional algorithm, it makes prior assumptions about the noisy image. First, it assumes that there are similar patches inside the scene. Second, it assumes that the noise is homogeneous around the scene. These are the two major assumptions that BM3D has about the noisy image. While the first assumption is usually true, the second assumption is sometimes violated in the final rendered image. The violation could lead to the failure of the denoiser, which will be shown in the [validation](#basicdenoising/validation) section.
+
+For BM3D, the process of finding similar patches is named block matching. Similar patches are grouped together, forming a 3D cube. Each patch inside the cube is first converted into the frequency domain. Next, these 3D cubes are filtered together. Final filtered results are reverted back to the spatial domain, to reproduce the denoised image. To perform all aforementioned procedures, BM3D also requires a noise sigma as input. Noise sigma defines how much noise is inside the image, the higher the greater. Therefore, a simple global noise sigma estimation is implemented as discussed in the following section.
+
+### Noise sigma estimation
+For rendering, it would be nice to have a noise sigma estimation local-wise. The noise does vary a lot inside the image, e.g. specular reflection. However, using local-wise noise sigma requires substantial changes to the algorithm. For the implemented algorithm, only a global noise sigma estimation is performed, as a rough estimation of the overall noise.
+
+The global noise sigma estimation is done in the following steps:
+1. Generate random patches inside the image. The image is in RGB format. Only one channel is sampled. In total, there are 10000 samples drawn.
+2. Given all these samples, compute the standard deviation (sigma) of them. Standard deviations are computed as usual.
+3. Cluster these samples, based on their standard deviation. It is a specific version of the KMeans algorithm, where only two clusters are generated.
+4. The global sigma value is computed as the higher mean of the two clusters.
+
+The described global noise sigma estimation algorithm is quite brute. The performance is dependent on the random samples generated. If there are high-frequency textures inside the image, the algorithm could wrongly estimate it as noise. The reason for using the cluster with a higher mean is as follows: 1) Overestimate is better than underestimate in the rendering, because there are usually noise-free patches inside the rendered images, and underestimate is close to 0; 2) Regions with low noise are usually flat areas. Even if we compute a higher noise sigma, it outputs reasonably good denoised results for low noise regions. Meanwhile, it is capable of denoising the high noise regions.
+
+### Denoiser
+The recommended algorithm is non local mean, but it has quite poor performance in maintaining the details inside the denoised image. Therefore, I chose to implement another algorithm, BM3D, which achieves better performance in denoising. The implementation only achieves a subset of all BM3D variants. More specifically, it only supports the biorthogonal wavelet transform, without the discrete cosine transform. There are some tweaks to the Kaiser window coefficients. The Kaiser window in use is all ones everywhere, to disable distance penalty on the weight.
+
+The BM3D denoiser is done in 2 main steps.
+
+1. BM3D 1st step.
+    1. Compute the block matching for each pixel. The similarity between different patches is computed as the pixel-wise squared difference. Only the blocks with a smaller than threshold difference are counted as similar patches. Different patches are sorted based on their similarity score.
+    2. Perform the biorthogonal wavelet transform on every patch to convert the image into the frequency domain. And build the real 3D cube using patches' frequency representation.
+    3. Perform the hard threshold filter on the 3D cube. Before and after applying the filter, an additional Hadamard transform is performed at the third dimension of the 3D cube.
+    4. The 3D cube is transformed back using biorthogonal inverse transform to obtain the spatial representation back. 
+    5. Perform the weighted reconstruction of the denoised image. The weight is computed using the standard deviation of the 3D cube. The idea is to give higher weight to more reliable (stable) estimates.
+2. BM3D 2nd step. The 2nd step is a mimic of the 1st one. The main difference is:
+    1. The block matching is performed on the output from the 1st step. Noise in the original image may result in poor matching, degrading the denoising performance. Thus, it uses a smooth version (output from the 1st step) to perform the block matching.
+    2. Instead of performing the hard threshold filter, it uses the Wiener filter. The Wiener filter uses both the output from the 1st step and the original noisy image. The idea is to use the information that we have learned from the 1st step to improve the denoised estimation. The denoising is still on the noisy image. It makes little sense to denoise the denoised version from the 1st step, as it introduces more bias into the final denoised image.
+
+
+## Validation
+The validation of this feature is done by comparing images before and after the denoiser.
+
+### With or without denoiser
+As discussed previously, there are two major assumptions that BM3D makes about the noisy image, 1) similar patches inside the image; 2) homogeneous noise around the scene.  When the assumptions are met, the denoiser generates quite good results. The performance degrades when these assumptions are broken. While the first assumptions are usually met, the second assumption is at the risk of failure. For rendering, the noise distribution is quite non-homogeneous, depending on the location of the light source, materials of the object, and the view direction of the camera. But, in general, the rendered image from a scene with only diffuse materials is relatively homogeneous. When in the presence of the specular reflection/refraction, the noise distribution could concentrate on some local areas. Following comparisons show such an effect of the influence of the materials. For the assumption met case, all materials in the scene are in diffuse BSDF. As you could see from the image before denoising, the noise is quite evenly distributed. For the assumption broken case, there exist some materials in the scene that produce specular reflection/refraction. The image before denoising contains some local areas where quite a lot of noise is present, while some areas are almost noise-free.
+
+#### Assumptions met (good performance)
+
+Cornell box (denoiser), the left is the image before denoiser. The image before the denoiser is rendered with the path integrator with 8 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="denoiser/cbox-denoiser-diffuse.png" alt="Before denoiser">
+    <img src="denoiser/cbox-denoiser-diffuse_denoised.png" alt="After denoiser">
+</div>
+
+Monkey (denoiser), the left is the image before denoiser. The image before the denoiser is rendered with the path integrator with 128 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="denoiser/monkey-denoiser-diffuse.png" alt="Before denoiser">
+    <img src="denoiser/monkey-denoiser-diffuse_denoised.png" alt="After denoiser">
+</div>
+
+Project scene (denoiser), the left is the image before denoiser. The image before the denoiser is rendered with the volumetric path integrator with 32368 samples per pixel. Although there are not many diffuse materials inside this scene, the volume scattering gives the rendered image a somehow homogeneous noise distribution. Removing remaining noise inside the image using a sampling strategy would otherwise use a substantial amount of time :).
+<div class="twentytwenty-container">
+    <img src="project_final.png" alt="Before denoiser">
+    <img src="project_denoised.png" alt="After denoiser">
+</div>
+
+#### Assumptions broken (bad performance)
+Cornell box (denoiser), the left is the image before denoiser. The image before the denoiser is rendered with the path integrator with 16 samples per pixel. In the image before denoising, there is quite a lot of noise (more than average) on the top and right wall. After denoising, there is still substantial remaining noise in those areas.
+<div class="twentytwenty-container">
+    <img src="denoiser/cbox-denoiser.png" alt="Before denoiser">
+    <img src="denoiser/cbox-denoiser_denoised.png" alt="After denoiser">
+</div>
+
+Monkey (denoiser), the left is the image before denoiser. The image before the denoiser is rendered with the path integrator with 32 samples per pixel. In the image before denoising, there is quite a lot of noise (more than average) in the refraction direction of the glass monkey. After denoising, there is still substantial remaining noise in those areas.
+<div class="twentytwenty-container">
+    <img src="denoiser/monkey-denoiser.png" alt="Before denoiser">
+    <img src="denoiser/monkey-denoiser_denoised.png" alt="After denoiser">
+</div>
+
+
+
+
+
+Homogeneous participating media
+=========
+The implementation could be found in `src/media/homogeneous.cpp` and `src/integrator/vol_path.cpp`.
+
+## Description
+The volume scattering process could be defined by four major components. The first is absorption. It defines how much light gets absorbed along its path. Typical absorption media could be dark smoke. The second is the out-scattering. Small particles inside the media also scatter light in other directions. Therefore, rays that would reach a point without media get scattered inside the media and only some portion of it makes it through. The third one is the in-scattering. If there is out-scattering, there will be in-scattering. In-scattering describes the process that light rays originate from other directions that finally make their way to reach the target direction. Last is the emission. The fire is such an example, where the floating carbon particles emit light to their surrounding environment.
+
+While the absorption is not very interesting, the scattering process involves quite a lot of variations. For example, given an incident light direction, what would be the outgoing light direction, with which distribution. These characteristics are described by the phase function of the media. Phase functions could be either isotropic or anisotropic, which has nothing to do with the isotropy of the media. We could have an anisotropic phase function in an isotropic media and vice versa. A widely used phase function was developed by Henyey and Greenstein. It is parametrized by a single parameter *g*. Given a different *g*, the phase function could be either isotropic or anisotropic. The value of *g* is within the range of (-1, 1), where negative values mean back-scattering (incident light goes back to its original direction), and positive values mean forward-scattering (incident light goes to the inverse direction).
+
+For the homogeneous media without emission, it could be defined by three parameters, namely the absorption coefficient, scattering coefficient, and the phase function. The absorption and scattering coefficients are used to compute the light attenuation, and in-scattering inside the media. The phase function specifies the rule to follow when a medium interaction actually happens.
+
+With the media ready, we are still not ready to render it in Nori. All previously integrators assume the scene is inside a vacuum, which means there is no media at all. We still need an integrator that could "see" the media inside the scene. To "see" the media, we have to integrate the medium interaction sampling and light transmittance computation. More specifically, we have to know whether the ray is inside a medium now. If it is inside the media, we have to compute the integral of the in-scattering and attenuated light from a surface. In practice, we use the Monte Carol sampling to simulate the process. For in-scattering, we have to sample a point inside the media, check its new outgoing direction, and trace it further. For surface light attenuation, we have to compute the correct transmittance value, and the probability that the ray is able to reach that far.
+
+## Design choices
+The design could be roughly divided into two parts, one is the media interface, and the other is the volumetric path integrator. The media itself has to be stored somewhere inside the scene. The implemented integrator supports two kinds of storage, 1) a global media inside the scene; and 2) a medium inside a mesh. The first kind is stored inside the scene object, and could be read out globally. The second kind of storage requires the mesh object to have a refractive BSDF to see the media inside. It could be dielectric, for example. Besides, to better visualize the media inside a mesh, a NULL BSDF is also added. The NULL BSDF does nothing but forward the light and it is deterministic given the incident direction. The integrator does not handle the case where there are two media at a point in the scene.
+
+### Media interface
+The media has three main functions:
+1. `tr`. It computes the beam transmittance with a given distance. Its value is given by a formula, $Tr = e^{-td}$, where t is the sum between the absorption and scattering coefficients, and d is the distance of the ray.
+2. `sample`. The `sample` function samples a new distance along the ray with the help of a random number generator. If the sampled distance is longer than the ray distance, it means that it is a surface interaction. If it is shorter, it means we are sampling a medium interaction. The probability of sampling surface or media is different in the sense that the probability of sampling surface is an integral of all sampled distances that are larger than the ray distance, while the probability of sampling media is a probability density.
+3. phase function. Media offers wrapper functions to call the phase functions inside. The phase function used is the one defined by Henyey and Greenstein. It is used by the volumetric path integrator to sample a new outgoing direction given an incident direction with a medium interaction. It is also used for computing the phase function value when explicitly sampling emitters. 
+
+### Volumetric path integrator
+To sample volumetric scattering efficiently, I chose to implement a volumetric path integrator with the next event estimation. This requires changes to the existing interface `uniformlySampleLight` to support medium interactions.
+
+#### `uniformlySampleLight`
+Previously, `uniformlySampleLight` only handles surface interaction. Now it has to support medium interaction, along with the beam transmittance. Since I tend to support multiple media inside a scene, it should also support the transition between media. Also, there is a newly added NULL BSDF, the visibility test should ignore its existence and continue. In summary, the main changes to it include:
+1. NULL BSDF. NULL BSDF changes the behavior of the visibility test. If the shadow ray intersects with the NULL BSDF, it is not considered blocked. With this property, there could be media transition along the shadow ray, and the detailed procedure is discussed below.
+2. Media transition. Media transition handles the media change along the ray. The media transition could only happen at the NULL BSDF. For others, like dielectric, the visibility test would fail for the shadow ray. The implementation supports a global media, together with media inside a mesh. It does not support mesh media inside a mesh media, for simplicity. Therefore, the media transition could be categorized into two, 1) from global media into the mesh media; 2) from the mesh media into the global media. The global media or the mesh media could be NULL (vacuum) as well. To compute the transition precisely, the ray direction and shading frame are used to determine whether the ray is going out or into the mesh media. And at every media transition, the transmittance value is updated accordingly.
+3. Transmittance. Unlike `vol_path` where all the transmittance gets canceled out, there is no random sampling that happens for the emitter sampling. The transmittance persists in the numerator. Therefore, we have to compute the transmittance correctly along the shadow ray. The transmittance follows the product rule. As a result, we could consider transmittance for a segment of ray, which is useful for the media transition case.
+4. Surface or medium interaction. These two kinds of interactions are handled differently. For surface interaction, it uses the BSDF and the cosine factor to compute the correct reflectance, while the medium interaction uses albedo and phase function.
+
+#### `vol_path`
+The logic of the volumetric path integrator is straightforward.
+1. Find out the intersection point of the ray. The difference from a usual path integrator is that even if no intersection is found, the ray is able to continue (if it is inside the media).
+2. Given the intersection point, found or not, if the ray is currently inside a medium, we sample whether it is a surface interaction or medium interaction.
+3. If it belongs to a medium interaction:
+    1. Sample the emitter explicitly. More precisely, to call `uniformSampleLight` with medium interaction flag set, and pass in the current medium that the intersection point is in.
+    2. Sample a new outgoing direction. This is done by querying the phase function of the media.
+    3. Update the throughput (or beta) by the media's albedo. Also, the specular flag is set to false, since the phase function is not a Dirac delta one.
+4. If it belongs to a surface interaction:
+    1. Check the interaction is on an emitter. If it is, and it is either the 0th bounce or the previous bounce is specular (to avoid double-counting), we count its radiance in. 
+    2. Sample the emitter explicitly if the intersection's BSDF is not NULL. Again, here we call `uniformSampleLight` with the surface interaction, and pass in the current medium that the intersection point is in.
+    3. Perform standard BSDF sampling to get the new outgoing direction. Also, use its value to update the throughput (or beta).
+    4. Update the media transition if any. Unlike in `uniformSampleLight`, the media transition could happen for all refractive materials here. It is no longer a shadow ray test, but to generate new rays to enter other media if any.
+5. Terminate the ray using Russian Roulette, with minimal 3 bounces.
+
+## Validation
+The validation of this feature is done in two steps. First, it compares the rendered image with or without homogeneous media using Nori. Second, it compares images rendered by Mitsuba and by Nori. The `xml` file used by Mitsuba is a literal translation of the `xml` file used by Nori. Both images used the `volpath` integrator with the same sample counts. Since `volpath` integrator in Mitsuba also uses explicit emitter sampling, the results look very similar with the same sample counts.
+
+### With or without homogeneous participating media
+A simple show case of the homogeneous participating media.
+<div class="twentytwenty-container">
+    <img src="homogeneous/without_homo.png" alt="Without Homo">
+    <img src="homogeneous/with_homo.png" alt="With Homo">
+</div>
+
+### Comparison to Mitsuba
+Cornell box (media inside null BSDF), the left is the reference image produced by Mitsuba. Both are rendered with the volpath integrator with 256 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="homogeneous/cbox-ref.png" alt="Reference">
+    <img src="homogeneous/cbox.png" alt="Mine">
+</div>
+
+Cornell box (media inside both the scene and dielectric BSDF), the left is the reference image produced by Mitsuba. Both are rendered with the volpath integrator with 256 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="homogeneous/cbox-comp-ref.png" alt="Reference">
+    <img src="homogeneous/cbox-comp.png" alt="Mine">
+</div>
+
+Fog (media inside the scene and null BSDF), the left is the reference image produced by Mitsuba. Both are rendered with the volpath integrator with 256 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="homogeneous/homo-ref.png" alt="Reference">
+    <img src="homogeneous/homo.png" alt="Mine">
+</div>
+
+God ray (media inside the scene, with very high albedo), the left is the reference image produced by Mitsuba. Both are rendered with the volpath integrator with 1024 samples per pixel.
+<div class="twentytwenty-container">
+    <img src="homogeneous/god_ray-ref.png" alt="Reference">
+    <img src="homogeneous/god_ray.png" alt="Mine">
+</div>
 
 
 Feedback

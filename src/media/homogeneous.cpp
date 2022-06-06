@@ -41,12 +41,12 @@ public:
 	    return sampledMedium ? (tr * m_sigma_s) : tr;
 	}
 
-    float sample_p(const Vector3f &wo, Vector3f *wi, const Point2f &u) const {
-    	return m_phase->sample_p(wo, wi, u);
+    float sample_p(const Vector3f &wi, Vector3f *wo, const Point2f &u) const {
+    	return m_phase->sample_p(wi, wo, u);
 	}
 
-	float p(const Vector3f &wo, const Vector3f &wi) const {
-		return m_phase->p(wo, wi);
+	float p(const Vector3f &wi, const Vector3f &wo) const {
+		return m_phase->p(wi, wo);
 	}
 
 	Color3f albedo() const {

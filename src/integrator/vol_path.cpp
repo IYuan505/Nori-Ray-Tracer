@@ -46,9 +46,9 @@ public:
             if (mediumIts.t < its.t) {
                 L += throughput * scene->uniformlySampleLight(sampler, &mediumIts, &eQ, iterRay, currentMedium, false);
                 /* Sample a new outgoing direction */
-                Vector3f wo = -iterRay.d, wi;
-                currentMedium->sample_p(wo, &wi, sampler->next2D());
-                Ray3f temp = Ray3f(mediumIts.p, wi.normalized());
+                Vector3f wi = -iterRay.d, wo;
+                currentMedium->sample_p(wi, &wo, sampler->next2D());
+                Ray3f temp = Ray3f(mediumIts.p, wo.normalized());
                 memcpy(&iterRay, &temp, sizeof(Ray3f));
                 throughput *= currentMedium->albedo();
                 specularBounce = false;

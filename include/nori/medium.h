@@ -11,10 +11,10 @@ NORI_NAMESPACE_BEGIN
 class PhaseFunction {
 public:
     /* Returns the value of the phase function for the given pair of directions */
-    virtual float p(const Vector3f &wo, const Vector3f &wi) const = 0;
+    virtual float p(const Vector3f &wi, const Vector3f &wo) const = 0;
 
     /* Get a incident direction for given outgoing direction, with additional random 2D u */
-    virtual float sample_p(const Vector3f &wo, Vector3f *wi, const Point2f &u) const = 0;
+    virtual float sample_p(const Vector3f &wi, Vector3f *wo, const Point2f &u) const = 0;
 };
 
 /* Henyey–Greenstein phase function */
@@ -27,11 +27,11 @@ class HenyeyGreenstein: public PhaseFunction {
 public:
     HenyeyGreenstein(float g): g(g) {}
 
-    float p(const Vector3f &wo, const Vector3f &wi) const {
-        return PhaseHG(wo.dot(wi), g);
+    float p(const Vector3f &wi, const Vector3f &wo) const {
+        return PhaseHG(wi.dot(wo), g);
     }
 
-    float sample_p(const Vector3f &wo, Vector3f *wi, const Point2f &u) const {
+    float sample_p(const Vector3f &wi, Vector3f *wo, const Point2f &u) const {
         float cosTheta;
         if (std::abs(g) < 1e-3)
             cosTheta = 1 - 2 * u[0];
@@ -43,8 +43,8 @@ public:
         // Compute direction _wi_ for Henyey--Greenstein sample
         float sinTheta = std::sqrt(std::max((float)0, 1 - cosTheta * cosTheta));
         float phi = 2 * M_PI * u[1];
-        Frame f = Frame(wo);
-        *wi = f.toWorld(Vector3f(sinTheta * std::cos(phi), sinTheta * std::sin(phi), cosTheta));
+        Frame f = Frame(wi);
+        *wo = f.toWorld(Vector3f(sinTheta * std::cos(phi), sinTheta * std::sin(phi), cosTheta));
         return PhaseHG(cosTheta, g);
     }
 private:
@@ -58,8 +58,8 @@ public:
     /* Sample an intersection in the medium */
     virtual Color3f sample(const Ray3f ray, Sampler *sampler, Intersection &mediumIts) const = 0;
     /* Wrapper of the phase function */
-    virtual float sample_p(const Vector3f &wo, Vector3f *wi, const Point2f &u) const = 0;
-    virtual float p(const Vector3f &wo, const Vector3f &wi) const = 0;
+    virtual float sample_p(const Vector3f &wi, Vector3f *wo, const Point2f &u) const = 0;
+    virtual float p(const Vector3f &wi, const Vector3f &wo) const = 0;
     virtual Color3f albedo() const = 0;
     virtual Color3f getS() const = 0;
     EClassType getClassType() const { return EMedium; }
