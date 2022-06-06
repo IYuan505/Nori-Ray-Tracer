@@ -95,7 +95,7 @@ A simple show case of the image texture.
 </div>
 
 ### Comparison to Mitsuba
-Textured Cornell box, the left is the reference image produced by Mitsuba. Both are rendered with the path integrator with 256 samples per pixel. <span style="color:red"> Mitsuba has a small scene translation compared to Nori, probably due to different precision in handling camera to world transformation. All following images rendered by Mitsuba have the same issue. Hopefully, it does not introduce any trouble in comparing two results.</span>
+Textured Cornell box, the left is the reference image produced by Mitsuba. Both are rendered with the path integrator with 256 samples per pixel.
 <div class="twentytwenty-container">
     <img src="texture/cbox-texture-ref.png" alt="Reference">
     <img src="texture/cbox-texture.png" alt="Mine">
@@ -348,17 +348,13 @@ Fog (media inside the scene and null BSDF), the left is the reference image prod
     <img src="homogeneous/homo.png" alt="Mine">
 </div>
 
-God ray (media inside the scene, with very high albedo), the left is the reference image produced by Mitsuba. Both are rendered with the volpath integrator with 1024 samples per pixel.
+God ray (media inside the scene, with very high albedo), the left is the reference image produced by Mitsuba. Both are rendered with the volpath integrator with 512 samples per pixel.
 <div class="twentytwenty-container">
     <img src="homogeneous/god_ray-ref.png" alt="Reference">
     <img src="homogeneous/god_ray.png" alt="Mine">
 </div>
 
 
-Feedback
-========
-
-Please provide feedback about the final project or the course in general.
 
 <!-- Slider -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
