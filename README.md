@@ -1,14 +1,6 @@
-Advanced Computer Graphics — Homeworks
-======================================
-
-Student name: Qiyuan Liang
-
-Sciper number: 323093
+# Nori Ray Tracer
 
 
-## Build status
-
-**Insert your build badge URL here**
 
 ## Homework results
 
@@ -20,7 +12,12 @@ Sciper number: 323093
 | 4          | [report.html](results/homework-4/report.html)
 | 5          | [report.html](results/homework-5/report.html)
 
+## Project results
+[report.html](results/project/report.html)
+
 
 ## Featured result
 
-Feel free to show off your best render here!
+A skull inside the homogenous participating media.
+
+![Rendered image with homogeneous participating media](results/project/project_final.png)
